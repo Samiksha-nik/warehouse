@@ -19,15 +19,7 @@ const Dispatch = () => {
   const [customers, setCustomers] = useState([]);
   const [dispatches, setDispatches] = useState([]);
   const [formData, setFormData] = useState({
-    dispatchNo: '',
-    date: '',
-    time: '',
     mucNumber: '',
-    platform: '',
-    invoice: null,
-    productPhoto: null,
-    fromLocation: '',
-    toLocation: '',
     productName: '',
     unit: '',
     grade: '',
@@ -37,6 +29,8 @@ const Dispatch = () => {
     totalMm: '',
     quantity: '',
     bundleNumber: '',
+    fromLocation: '',
+    toLocation: ''
   });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -235,41 +229,25 @@ const Dispatch = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!productValid) {
-      setMessage('Product is not valid for dispatch.');
-      return;
-    }
-    if (!formData.platform) {
-      setMessage('Please select a platform.');
-      return;
-    }
-    if (!formData.invoice) {
-      setMessage('Please upload the invoice.');
-      return;
-    }
-    if (!formData.productPhoto) {
-      setMessage('Please upload the product photo.');
-      return;
-    }
     try {
-      const data = new FormData();
-      Object.keys(formData).forEach(key => {
-        if (formData[key]) data.append(key, formData[key]);
+      const response = await axios.post('http://localhost:5000/api/dispatch', {
+        mucNumber: formData.mucNumber,
+        productName: formData.productName,
+        unit: formData.unit,
+        grade: formData.grade,
+        length: formData.length,
+        width: formData.width,
+        thickness: formData.thickness,
+        totalMm: formData.totalMm,
+        quantity: formData.quantity,
+        bundleNumber: formData.bundleNumber,
+        fromLocation: formData.fromLocation,
+        toLocation: formData.toLocation
       });
-      await axios.post('http://localhost:5000/api/dispatch', data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+
       setMessage('Dispatch created successfully!');
       setFormData({
-        dispatchNo: '',
-        date: '',
-        time: '',
         mucNumber: '',
-        platform: '',
-        invoice: null,
-        productPhoto: null,
-        fromLocation: '',
-        toLocation: '',
         productName: '',
         unit: '',
         grade: '',
@@ -279,11 +257,12 @@ const Dispatch = () => {
         totalMm: '',
         quantity: '',
         bundleNumber: '',
+        fromLocation: '',
+        toLocation: ''
       });
-      setProductValid(false);
-      generateDispatchNo();
+      fetchDispatches();
     } catch (err) {
-      setMessage('Error saving dispatch: ' + (err.response?.data?.message || err.message));
+      setMessage(err.response?.data?.message || 'Error creating dispatch');
     }
   };
 
@@ -314,14 +293,6 @@ const Dispatch = () => {
                 <div className="form-group">
                   <label>MUC Number*</label>
                   <input type="text" name="mucNumber" value={formData.mucNumber} onChange={handleInputChange} onBlur={handleMucBlur} required className="form-input" />
-                </div>
-                <div className="form-group">
-                  <label>Platform*</label>
-                  <select name="platform" value={formData.platform} onChange={handleInputChange} required className="form-input">
-                    <option value="">Select Platform</option>
-                    <option value="Amazon">Amazon</option>
-                    <option value="Flipkart">Flipkart</option>
-                  </select>
                 </div>
               </div>
               <div className="form-row">
@@ -396,7 +367,7 @@ const Dispatch = () => {
               </div>
             </div>
             {message && <div className="message error">{message}</div>}
-            <button type="submit" className="btn-primary" disabled={!productValid || !formData.platform || !formData.invoice || !formData.productPhoto}>Save Dispatch</button>
+            <button type="submit" className="btn-primary" disabled={!productValid || !formData.mucNumber || !formData.productName || !formData.unit || !formData.grade || !formData.length || !formData.width || !formData.thickness || !formData.totalMm || !formData.quantity || !formData.bundleNumber || !formData.fromLocation || !formData.toLocation || !formData.invoice || !formData.productPhoto}>Save Dispatch</button>
           </form>
         ) : (
           <div className="card">

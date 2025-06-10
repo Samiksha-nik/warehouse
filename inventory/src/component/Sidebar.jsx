@@ -6,7 +6,8 @@ import {
   FaGlobe, FaMapMarkerAlt, FaCity, FaIndustry, FaWarehouse, FaAddressCard,
   FaUserFriends, FaUserTie, FaTruckLoading,
   FaBoxOpen, FaLayerGroup,
-  FaRuler, FaStar, FaMedal, FaBarcode, FaUndo
+  FaRuler, FaStar, FaMedal, FaBarcode, FaUndo,
+  FaAngleDoubleLeft, FaAngleDoubleRight
 } from 'react-icons/fa';
 import './Sidebar.css';
 
@@ -18,6 +19,7 @@ const Sidebar = () => {
     inventory: false,
     productManagement: false
   });
+  const [collapsed, setCollapsed] = useState(true);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -30,129 +32,84 @@ const Sidebar = () => {
     return location.pathname === path;
   };
 
+  const handleCollapse = () => setCollapsed((prev) => !prev);
+
   return (
-    <div className="sidebar">
+    <div className={`sidebar${collapsed ? ' collapsed' : ''}`}>
       <div className="sidebar-header">
-        <h2>Inventory</h2>
+        {!collapsed && <h2>Inventory</h2>}
+        <button className="sidebar-toggle-btn" onClick={handleCollapse}>
+          {collapsed ? <FaAngleDoubleRight /> : <FaAngleDoubleLeft />}
+        </button>
       </div>
       <nav className="sidebar-nav">
         {/* Master Pages Section */}
         <div className="master-sections">
-          <h3 className="master-section-title">Master Pages</h3>
-          
+          {!collapsed && <h3 className="master-section-title">Master Pages</h3>}
           <div className="master-section">
             <div className="master-section-header" onClick={() => toggleSection('companyLocation')}>
-              <span><FaBuilding /> Company & Location</span>
-              {expandedSections.companyLocation ? <FaChevronDown /> : <FaChevronRight />}
+              <span><FaBuilding /> {!collapsed && 'Company & Location'}</span>
+              {!collapsed && (expandedSections.companyLocation ? <FaChevronDown /> : <FaChevronRight />)}
             </div>
-            {expandedSections.companyLocation && (
+            {expandedSections.companyLocation && !collapsed && (
               <div className="master-subsection">
-                <Link to="/masters/company-location/country" className={`nav-item ${isActive('/masters/company-location/country') ? 'active' : ''}`}>
-                  <FaGlobe /> Country Master
-                </Link>
-                <Link to="/masters/company-location/state" className={`nav-item ${isActive('/masters/company-location/state') ? 'active' : ''}`}>
-                  <FaMapMarkerAlt /> State Master
-                </Link>
-                <Link to="/masters/company-location/city" className={`nav-item ${isActive('/masters/company-location/city') ? 'active' : ''}`}>
-                  <FaCity /> City Master
-                </Link>
-                <Link to="/masters/company-location/company" className={`nav-item ${isActive('/masters/company-location/company') ? 'active' : ''}`}>
-                  <FaIndustry /> Company Master
-                </Link>
-                <Link to="/masters/company-location/location" className={`nav-item ${isActive('/masters/company-location/location') ? 'active' : ''}`}>
-                  <FaWarehouse /> Location Master
-                </Link>
-                <Link to="/masters/company-location/address" className={`nav-item ${isActive('/masters/company-location/address') ? 'active' : ''}`}>
-                  <FaAddressCard /> Address Master
-                </Link>
+                <Link to="/masters/company-location/country" className={`nav-item ${isActive('/masters/company-location/country') ? 'active' : ''}`}><FaGlobe /> {!collapsed && 'Country Master'}</Link>
+                <Link to="/masters/company-location/state" className={`nav-item ${isActive('/masters/company-location/state') ? 'active' : ''}`}><FaMapMarkerAlt /> {!collapsed && 'State Master'}</Link>
+                <Link to="/masters/company-location/city" className={`nav-item ${isActive('/masters/company-location/city') ? 'active' : ''}`}><FaCity /> {!collapsed && 'City Master'}</Link>
+                <Link to="/masters/company-location/company" className={`nav-item ${isActive('/masters/company-location/company') ? 'active' : ''}`}><FaIndustry /> {!collapsed && 'Company Master'}</Link>
+                <Link to="/masters/company-location/location" className={`nav-item ${isActive('/masters/company-location/location') ? 'active' : ''}`}><FaWarehouse /> {!collapsed && 'Location Master'}</Link>
+                <Link to="/masters/company-location/address" className={`nav-item ${isActive('/masters/company-location/address') ? 'active' : ''}`}><FaAddressCard /> {!collapsed && 'Address Master'}</Link>
               </div>
             )}
           </div>
-
           <div className="master-section">
             <div className="master-section-header" onClick={() => toggleSection('account')}>
-              <span><FaUsers /> Account Management</span>
-              {expandedSections.account ? <FaChevronDown /> : <FaChevronRight />}
+              <span><FaUsers /> {!collapsed && 'Account Management'}</span>
+              {!collapsed && (expandedSections.account ? <FaChevronDown /> : <FaChevronRight />)}
             </div>
-            {expandedSections.account && (
+            {expandedSections.account && !collapsed && (
               <div className="master-subsection">
-                <Link to="/masters/account-management/customer" className={`nav-item ${isActive('/masters/account-management/customer') ? 'active' : ''}`}>
-                  <FaUserTie /> Customer Master
-                </Link>
-                <Link to="/masters/account-management/supplier" className={`nav-item ${isActive('/masters/account-management/supplier') ? 'active' : ''}`}>
-                  <FaTruckLoading /> Supplier Master
-                </Link>
+                <Link to="/masters/account-management/customer" className={`nav-item ${isActive('/masters/account-management/customer') ? 'active' : ''}`}><FaUserTie /> {!collapsed && 'Customer Master'}</Link>
+                <Link to="/masters/account-management/supplier" className={`nav-item ${isActive('/masters/account-management/supplier') ? 'active' : ''}`}><FaTruckLoading /> {!collapsed && 'Supplier Master'}</Link>
               </div>
             )}
           </div>
-
           <div className="master-section">
             <div className="master-section-header" onClick={() => toggleSection('inventory')}>
-              <span><FaBoxes /> Inventory Management</span>
-              {expandedSections.inventory ? <FaChevronDown /> : <FaChevronRight />}
+              <span><FaBoxes /> {!collapsed && 'Inventory Management'}</span>
+              {!collapsed && (expandedSections.inventory ? <FaChevronDown /> : <FaChevronRight />)}
             </div>
-            {expandedSections.inventory && (
+            {expandedSections.inventory && !collapsed && (
               <div className="master-subsection">
-                <Link to="/masters/inventory-management/unit" className={`nav-item ${isActive('/masters/inventory-management/unit') ? 'active' : ''}`}>
-                  <FaRuler /> Unit Master
-                </Link>
-                <Link to="/masters/inventory-management/grade" className={`nav-item ${isActive('/masters/inventory-management/grade') ? 'active' : ''}`}>
-                  <FaMedal /> Grade Master
-                </Link>
-                <Link to="/masters/inventory-management/hsn" className={`nav-item ${isActive('/masters/inventory-management/hsn') ? 'active' : ''}`}>
-                  <FaBarcode /> HSN Master
-                </Link>
-                <Link to="/masters/inventory-management/category" className={`nav-item ${isActive('/masters/inventory-management/category') ? 'active' : ''}`}>
-                  <FaTags /> Category Master
-                </Link>
-                
-                <Link to="/masters/inventory-management/sub-category" className={`nav-item ${isActive('/masters/inventory-management/sub-category') ? 'active' : ''}`}>
-                  <FaLayerGroup /> Sub Category Master
-                </Link>
-
+                <Link to="/masters/inventory-management/unit" className={`nav-item ${isActive('/masters/inventory-management/unit') ? 'active' : ''}`}><FaRuler /> {!collapsed && 'Unit Master'}</Link>
+                <Link to="/masters/inventory-management/grade" className={`nav-item ${isActive('/masters/inventory-management/grade') ? 'active' : ''}`}><FaMedal /> {!collapsed && 'Grade Master'}</Link>
+                <Link to="/masters/inventory-management/hsn" className={`nav-item ${isActive('/masters/inventory-management/hsn') ? 'active' : ''}`}><FaBarcode /> {!collapsed && 'HSN Master'}</Link>
+                <Link to="/masters/inventory-management/category" className={`nav-item ${isActive('/masters/inventory-management/category') ? 'active' : ''}`}><FaTags /> {!collapsed && 'Category Master'}</Link>
+                <Link to="/masters/inventory-management/sub-category" className={`nav-item ${isActive('/masters/inventory-management/sub-category') ? 'active' : ''}`}><FaLayerGroup /> {!collapsed && 'Sub Category Master'}</Link>
                 <div className="master-section-header nested" onClick={() => toggleSection('productManagement')}>
-                  <span><FaBoxOpen /> Product Management</span>
-                  {expandedSections.productManagement ? <FaChevronDown /> : <FaChevronRight />}
+                  <span><FaBoxOpen /> {!collapsed && 'Product Management'}</span>
+                  {!collapsed && (expandedSections.productManagement ? <FaChevronDown /> : <FaChevronRight />)}
                 </div>
-                {expandedSections.productManagement && (
+                {expandedSections.productManagement && !collapsed && (
                   <div className="master-subsection nested">
-                    <Link to="/masters/inventory-management/product-management/product" className={`nav-item ${isActive('/masters/inventory-management/product-management/product') ? 'active' : ''}`}>
-                      <FaBoxOpen /> Product Master
-                    </Link>
-                    <Link to="/masters/inventory-management/product-management/product-online" className={`nav-item ${isActive('/masters/inventory-management/product-management/product-online') ? 'active' : ''}`}>
-                      <FaBoxOpen /> Product Master (Online)
-                    </Link>
-                    <Link to="/masters/inventory-management/product-management/raw-material" className={`nav-item ${isActive('/masters/inventory-management/product-management/raw-material') ? 'active' : ''}`}>
-                      <FaLayerGroup /> Raw Material Master
-                    </Link>
+                    <Link to="/masters/inventory-management/product-management/product" className={`nav-item ${isActive('/masters/inventory-management/product-management/product') ? 'active' : ''}`}><FaBoxOpen /> {!collapsed && 'Product Master'}</Link>
+                    <Link to="/masters/inventory-management/product-management/product-online" className={`nav-item ${isActive('/masters/inventory-management/product-management/product-online') ? 'active' : ''}`}><FaBoxOpen /> {!collapsed && 'Product Master (Online)'}</Link>
+                    <Link to="/masters/inventory-management/product-management/raw-material" className={`nav-item ${isActive('/masters/inventory-management/product-management/raw-material') ? 'active' : ''}`}><FaLayerGroup /> {!collapsed && 'Raw Material Master'}</Link>
                   </div>
                 )}
               </div>
             )}
           </div>
         </div>
-
         {/* Main Navigation */}
         <div className="main-nav-section">
-          <h3 className="master-section-title">Operations</h3>
-          <Link to="/" className={`nav-item ${isActive('/') ? 'active' : ''}`}>
-            <FaHome /> <span>Dashboard</span>
-          </Link>
-          <Link to="/label-generator" className={`nav-item ${isActive('/label-generator') ? 'active' : ''}`}>
-            <FaTags /> <span>Manual Generate Label</span>
-          </Link>
-          <Link to="/assign-inventory" className={`nav-item ${isActive('/assign-inventory') ? 'active' : ''}`}>
-            <FaBox /> <span>Assign Inventory</span>
-          </Link>
-          <Link to="/stock-transfer" className={`nav-item ${isActive('/stock-transfer') ? 'active' : ''}`}>
-            <FaExchangeAlt /> <span>Stock Transfer</span>
-          </Link>
-          <Link to="/dispatch" className={`nav-item ${isActive('/dispatch') ? 'active' : ''}`}>
-            <FaTruck /> <span>Dispatch</span>
-          </Link>
-          <Link to="/operations/return-refund" className={`nav-item ${isActive('/operations/return-refund') ? 'active' : ''}`}>
-            <FaUndo /> <span>Return & Refund</span>
-          </Link>
+          {!collapsed && <h3 className="master-section-title">Operations</h3>}
+          <Link to="/" className={`nav-item ${isActive('/') ? 'active' : ''}`}><FaHome /> {!collapsed && <span>Dashboard</span>}</Link>
+          <Link to="/label-generator" className={`nav-item ${isActive('/label-generator') ? 'active' : ''}`}><FaTags /> {!collapsed && <span>Manual Generate Label</span>}</Link>
+          <Link to="/assign-inventory" className={`nav-item ${isActive('/assign-inventory') ? 'active' : ''}`}><FaBox /> {!collapsed && <span>Assign Inventory</span>}</Link>
+          <Link to="/stock-transfer" className={`nav-item ${isActive('/stock-transfer') ? 'active' : ''}`}><FaExchangeAlt /> {!collapsed && <span>Stock Transfer</span>}</Link>
+          <Link to="/dispatch" className={`nav-item ${isActive('/dispatch') ? 'active' : ''}`}><FaTruck /> {!collapsed && <span>Dispatch</span>}</Link>
+          <Link to="/operations/return-refund" className={`nav-item ${isActive('/operations/return-refund') ? 'active' : ''}`}><FaUndo /> {!collapsed && <span>Return & Refund</span>}</Link>
         </div>
       </nav>
     </div>

@@ -1,7 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { FaTrash } from 'react-icons/fa';
 import '../../styles/shared.css';
+
+// Debounce function to limit API calls
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 const StockTransferOutward = ({ showForm, showList }) => {
   const [transfers, setTransfers] = useState([]);
@@ -23,8 +36,15 @@ const StockTransferOutward = ({ showForm, showList }) => {
     bundleNumber: '',
     remarks: '',
     status: 'Pending',
-    type: 'outward'
+    type: 'outward',
+    vehicleNumber: '',
+    destination: '',
+    transporter: '',
+    productPhoto: null
   });
+  const [mucValid, setMucValid] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMessage, setDialogMessage] = useState('');
 
   useEffect(() => {
     if (showList) {
@@ -62,47 +82,137 @@ const StockTransferOutward = ({ showForm, showList }) => {
     calculateTotalMm();
   }, [formData.length, formData.width, formData.thickness]);
 
-  // Fetch label details by MUC number
-  const fetchLabelDetails = async (mucNumber) => {
+  // Fetch product details by MUC number from inward transfers (strict match)
+  const fetchInwardDetails = async (mucNumber) => {
+    if (!mucNumber) {
+      setMucValid(false);
+      return;
+    }
+
     try {
-      const response = await axios.get(`http://localhost:5000/api/labels?mucNumber=${mucNumber}`);
-      if (response.data && response.data.length > 0) {
-        const label = response.data[0];
+      // Check if this MUC number is already used in outward transfers
+      const outwardResponse = await axios.get(`http://localhost:5000/api/stock-transfers-outward/check-muc/${mucNumber}`);
+      if (outwardResponse.data.exists) {
+        setMessage({ text: 'This MUC number is already used in an outward transfer.', type: 'error' });
+        setDialogMessage('This MUC number is already used in an outward transfer. Please enter a unique MUC number.');
+        setDialogOpen(true);
+        setMucValid(false);
+        // Clear the MUC number field and all related fields
         setFormData(prev => ({
           ...prev,
-          productName: label.productName || '',
-          unit: label.unit || '',
-          grade: label.grade || label.gradeValue || '',
-          length: label.length || '',
-          width: label.width || '',
-          thickness: label.thickness || '',
-          totalMm: label.totalMm || '',
-          quantity: label.quantity || '',
-          bundleNumber: label.bundleNumber || ''
+          mucNumber: '',
+          productName: '',
+          unit: '',
+          grade: '',
+          length: '',
+          width: '',
+          thickness: '',
+          totalMm: '',
+          quantity: '',
+          bundleNumber: ''
         }));
-        setMessage({ text: 'Label details fetched!', type: 'success' });
+        return;
+      }
+
+      // If not used in outward, check inward transfers
+      const response = await axios.get(`http://localhost:5000/api/stock-transfers-inward/muc/${mucNumber}`);
+      const match = response.data;
+      
+      if (match) {
+        setFormData(prev => ({
+          ...prev,
+          productName: match.productName || '',
+          unit: match.unit || '',
+          grade: match.grade || '',
+          length: match.length || '',
+          width: match.width || '',
+          thickness: match.thickness || '',
+          totalMm: match.totalMm || '',
+          quantity: match.quantity || '',
+          bundleNumber: match.bundleNumber || ''
+        }));
+        setMessage({ text: 'Product details fetched from inward.', type: 'success' });
+        setMucValid(true);
       } else {
-        setMessage({ text: 'No label found for this MUC number.', type: 'error' });
+        handleNoMatch();
       }
     } catch (err) {
-      setMessage({ text: 'Error fetching label details.', type: 'error' });
+      if (err.response && err.response.status === 404) {
+        handleNoMatch();
+      } else {
+        console.error('Error fetching MUC details:', err);
+        setMessage({ text: 'Error fetching MUC details', type: 'error' });
+        setMucValid(false);
+      }
     }
   };
 
+  // Helper function to handle no match case
+  const handleNoMatch = () => {
+    setFormData(prev => ({
+      ...prev,
+      productName: '',
+      unit: '',
+      grade: '',
+      length: '',
+      width: '',
+      thickness: '',
+      totalMm: '',
+      quantity: '',
+      bundleNumber: ''
+    }));
+    setMessage({ text: 'There is no MUC number matched.', type: 'error' });
+    setDialogMessage('There is no MUC number matched.');
+    setDialogOpen(true);
+    setMucValid(false);
+  };
+
+  // Create a debounced version of fetchInwardDetails
+  const debouncedFetchInwardDetails = useCallback(
+    debounce((mucNumber) => {
+      fetchInwardDetails(mucNumber);
+    }, 500),
+    []
+  );
+
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, files } = e.target;
+    if (name === 'productPhoto') {
+      setFormData(prev => ({ ...prev, productPhoto: files[0] }));
+    } else {
+      if (name === 'mucNumber') {
+        // Just update the value without fetching
+        setFormData(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      } else {
+        setFormData(prev => ({ ...prev, [name]: value }));
+      }
+    }
   };
 
   const handleMucBlur = () => {
-    if (formData.mucNumber) {
-      fetchLabelDetails(formData.mucNumber);
+    const mucNumber = formData.mucNumber.trim();
+    if (mucNumber) {
+      fetchInwardDetails(mucNumber);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const mucNumber = formData.mucNumber.trim();
+      if (mucNumber) {
+        fetchInwardDetails(mucNumber);
+      }
     }
   };
 
   const fetchTransfers = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/stock-transfers?type=outward');
+      const response = await axios.get('http://localhost:5000/api/stock-transfers-outward');
+      console.log('Fetched transfers:', response.data); // Debug log
       setTransfers(response.data);
     } catch (err) {
       console.error('Error fetching transfers:', err);
@@ -112,30 +222,43 @@ const StockTransferOutward = ({ showForm, showList }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      // Convert string values to numbers where needed
-      const submitData = {
-        outwardNo: `OUT-${Date.now()}`, // Generate a unique outward number
-        outwardDate: formData.date,
-        fromLocation: formData.fromLocation,
-        toLocation: formData.toLocation,
-        labelDetails: {
-          productName: formData.productName,
-          unit: formData.unit,
-          grade: formData.grade,
-          length: formData.length.toString(),
-          width: formData.width.toString(),
-          thickness: formData.thickness.toString(),
-          totalMm: formData.totalMm.toString(),
-          quantity: formData.quantity.toString(),
-          bundleNumber: formData.bundleNumber
-        },
-        type: 'outward',
-        status: 'pending',
-        notes: formData.remarks
-      };
 
-      await axios.post('http://localhost:5000/api/stock-transfers', submitData);
+    // Prevent submission if MUC is not valid
+    if (!mucValid) {
+      setMessage({ text: 'Please enter a unique MUC number before submitting.', type: 'error' });
+      setDialogMessage('Please enter a unique MUC number before submitting.');
+      setDialogOpen(true);
+      return;
+    }
+
+    try {
+      const submitData = new FormData();
+      submitData.append('mucNumber', formData.mucNumber);
+      submitData.append('date', formData.date);
+      submitData.append('fromLocation', formData.fromLocation);
+      submitData.append('toLocation', formData.toLocation);
+      submitData.append('productName', formData.productName);
+      submitData.append('unit', formData.unit);
+      submitData.append('grade', formData.grade);
+      submitData.append('length', formData.length);
+      submitData.append('width', formData.width);
+      submitData.append('thickness', formData.thickness);
+      submitData.append('totalMm', formData.totalMm);
+      submitData.append('quantity', formData.quantity);
+      submitData.append('bundleNumber', formData.bundleNumber);
+      submitData.append('remarks', formData.remarks);
+      submitData.append('status', formData.status);
+      submitData.append('vehicleNumber', formData.vehicleNumber);
+      submitData.append('destination', formData.destination);
+      submitData.append('transporter', formData.transporter);
+      if (formData.productPhoto) {
+        submitData.append('productPhoto', formData.productPhoto);
+      }
+
+      const response = await axios.post('http://localhost:5000/api/stock-transfers-outward', submitData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
       setMessage({ text: 'Transfer saved successfully!', type: 'success' });
       
       // Reset form
@@ -156,7 +279,11 @@ const StockTransferOutward = ({ showForm, showList }) => {
         bundleNumber: '',
         remarks: '',
         status: 'Pending',
-        type: 'outward'
+        type: 'outward',
+        vehicleNumber: '',
+        destination: '',
+        transporter: '',
+        productPhoto: null
       });
 
       // Refresh the list
@@ -168,14 +295,20 @@ const StockTransferOutward = ({ showForm, showList }) => {
       }, 3000);
     } catch (err) {
       console.error('Error saving transfer:', err);
-      setMessage({ text: 'Error saving transfer: ' + (err.response?.data?.message || err.message), type: 'error' });
+      if (err.response && err.response.status === 400) {
+        setMessage({ text: err.response.data.message, type: 'error' });
+        setDialogMessage(err.response.data.message);
+        setDialogOpen(true);
+      } else {
+        setMessage({ text: 'Error saving transfer: ' + (err.response?.data?.message || err.message), type: 'error' });
+      }
     }
   };
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this transfer?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/stock-transfers/${id}`);
+        await axios.delete(`http://localhost:5000/api/stock-transfers-outward/${id}`);
         setMessage({ text: 'Transfer deleted successfully!', type: 'success' });
         fetchTransfers();
         
@@ -202,7 +335,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
         }
       `}</style>
       <form onSubmit={handleSubmit} className="form-container">
-        <h2>New Outward Transfer</h2>
+        <h2>Outward Transfer</h2>
         {message.text && (
           <div className={`message ${message.type}`}>{message.text}</div>
         )}
@@ -217,6 +350,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 value={formData.mucNumber}
                 onChange={handleInputChange}
                 onBlur={handleMucBlur}
+                onKeyPress={handleKeyPress}
                 required
               />
             </div>
@@ -249,6 +383,25 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 onChange={handleInputChange}
                 required
               />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Status*</label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+                className="form-control"
+                required
+              >
+                <option value="Pending">Pending</option>
+                <option value="In Transit">In Transit</option>
+                <option value="Delivered">Delivered</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+                <option value="On Hold">On Hold</option>
+              </select>
             </div>
           </div>
         </div>
@@ -332,7 +485,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 name="totalMm"
                 value={formData.totalMm}
                 readOnly
-                className="readonly-input"
+                required
               />
             </div>
             <div className="form-group">
@@ -360,6 +513,51 @@ const StockTransferOutward = ({ showForm, showList }) => {
             </div>
           </div>
         </div>
+        {/* Vehicle Block */}
+        <div className="form-block">
+          <div className="form-row">
+            <div className="form-group">
+              <label>Vehicle Number</label>
+              <input
+                type="text"
+                name="vehicleNumber"
+                value={formData.vehicleNumber}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div className="form-group">
+              <label>Destination</label>
+              <input
+                type="text"
+                name="destination"
+                value={formData.destination}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Transporter</label>
+              <input
+                type="text"
+                name="transporter"
+                value={formData.transporter}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Product Photo</label>
+              <input
+                type="file"
+                name="productPhoto"
+                accept="image/*"
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
         <div className="form-row">
           <div className="form-group" style={{ flex: 1 }}>
             <label>Remarks</label>
@@ -370,7 +568,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
             />
           </div>
         </div>
-        <button type="submit" className="btn-primary">Save Outward Transfer</button>
+        <button type="submit" className="btn-primary" disabled={!mucValid}>Save Outward Transfer</button>
       </form>
     </>
   );
@@ -396,6 +594,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
           <thead>
             <tr>
               <th>Date</th>
+              <th>MUC Number</th>
               <th>From Location</th>
               <th>To Location</th>
               <th>Product Name</th>
@@ -414,38 +613,42 @@ const StockTransferOutward = ({ showForm, showList }) => {
           <tbody>
             {transfers.length === 0 ? (
               <tr>
-                <td colSpan="14" style={{ textAlign: 'center', color: '#888' }}>No transfers found.</td>
+                <td colSpan="15" style={{ textAlign: 'center', color: '#888' }}>No transfers found.</td>
               </tr>
             ) : (
-              transfers.map(transfer => (
-                <tr key={transfer._id}>
-                  <td>{transfer.date ? new Date(transfer.date).toLocaleDateString() : ''}</td>
-                  <td>{transfer.fromLocation || ''}</td>
-                  <td>{transfer.toLocation || ''}</td>
-                  <td>{transfer.productName || ''}</td>
-                  <td>{transfer.unit || ''}</td>
-                  <td>{transfer.grade || ''}</td>
-                  <td>{transfer.length || ''}</td>
-                  <td>{transfer.width || ''}</td>
-                  <td>{transfer.thickness || ''}</td>
-                  <td>{transfer.totalMm || ''}</td>
-                  <td>{transfer.quantity || ''}</td>
-                  <td>{transfer.bundleNumber || ''}</td>
-                  <td>
-                    <span className={`status-badge ${transfer.status ? transfer.status.toLowerCase() : ''}`}>
-                      {transfer.status || ''}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      className="btn-icon"
-                      onClick={() => handleDelete(transfer._id)}
-                    >
-                      <FaTrash />
-                    </button>
-                  </td>
-                </tr>
-              ))
+              transfers.map(transfer => {
+                console.log('Rendering transfer:', transfer); // Debug log
+                return (
+                  <tr key={transfer._id}>
+                    <td>{transfer.date ? new Date(transfer.date).toLocaleDateString() : ''}</td>
+                    <td>{transfer.mucNumber || ''}</td>
+                    <td>{transfer.fromLocation || ''}</td>
+                    <td>{transfer.toLocation || ''}</td>
+                    <td>{transfer.productName || ''}</td>
+                    <td>{transfer.unit || ''}</td>
+                    <td>{transfer.grade || ''}</td>
+                    <td>{transfer.length || ''}</td>
+                    <td>{transfer.width || ''}</td>
+                    <td>{transfer.thickness || ''}</td>
+                    <td>{transfer.totalMm || ''}</td>
+                    <td>{transfer.quantity || ''}</td>
+                    <td>{transfer.bundleNumber || ''}</td>
+                    <td>
+                      <span className={`status-badge ${transfer.status ? transfer.status.toLowerCase() : ''}`}>
+                        {transfer.status || ''}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        className="btn-icon"
+                        onClick={() => handleDelete(transfer._id)}
+                      >
+                        <FaTrash />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -457,6 +660,19 @@ const StockTransferOutward = ({ showForm, showList }) => {
     <div className="container">
       {showForm && renderForm()}
       {showList && renderList()}
+      {dialogOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{
+            background: 'white', padding: 24, borderRadius: 8, minWidth: 300, boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ marginBottom: 16 }}>{dialogMessage}</div>
+            <button onClick={() => setDialogOpen(false)} style={{ padding: '6px 18px' }}>OK</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

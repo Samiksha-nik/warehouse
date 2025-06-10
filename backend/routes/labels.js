@@ -11,10 +11,34 @@ const Jimp = require('jimp');
 // Set up multer for file uploads
 const upload = multer({ dest: path.join(__dirname, '../uploads/') });
 
-// Get all labels
+// Get all labels or filter by mucNumber
 router.get('/', async (req, res) => {
   try {
-    const labels = await Label.find().sort({ createdAt: -1 });
+    let query = {};
+    if (req.query.mucNumber) {
+      query.mucNumber = req.query.mucNumber;
+    }
+    
+    // Add date range filtering
+    if (req.query.startDate && req.query.endDate) {
+      const startDate = new Date(req.query.startDate);
+      const endDate = new Date(req.query.endDate);
+      endDate.setHours(23, 59, 59, 999); // Set to end of day
+      
+      query.createdAt = {
+        $gte: startDate,
+        $lte: endDate
+      };
+      
+      console.log('Date range query:', {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        query: query.createdAt
+      });
+    }
+    
+    const labels = await Label.find(query).sort({ createdAt: -1 });
+    console.log('Found labels:', labels.length);
     res.json(labels);
   } catch (err) {
     console.error('Error fetching labels:', err);
@@ -29,6 +53,7 @@ router.post('/', async (req, res) => {
 
     // Validate required fields
     const requiredFields = [
+      'mucNumber',
       'inventoryType',
       'productName',
       'unit',
@@ -37,8 +62,7 @@ router.post('/', async (req, res) => {
       'width',
       'thickness',
       'totalMM',
-      'quantity',
-      'bundleNumber'
+      'quantity'
     ];
     const missingFields = requiredFields.filter(field => !req.body[field]);
     
@@ -48,8 +72,8 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Do NOT set labelNumber here; let the model's pre-save hook handle it
     const label = new Label({
+      mucNumber: req.body.mucNumber,
       inventoryType: req.body.inventoryType,
       productName: req.body.productName,
       unit: req.body.unit,
@@ -92,59 +116,24 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// POST /scan - process QR code image and return label details
-router.post('/scan', upload.single('qrCode'), async (req, res) => {
+// Get a specific label by ID
+router.get('/:id', async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-    // Read the image using Jimp
-    const image = await Jimp.read(req.file.path);
-    const qr = new QRReader();
-    const value = await new Promise((resolve, reject) => {
-      qr.callback = (err, v) => {
-        if (err) return reject(err);
-        resolve(v);
-      };
-      qr.decode(image.bitmap);
-    });
-    // The QR code value should be the label number
-    let labelNumberFromQR = value && value.result ? value.result : '';
-    console.log('Decoded QR value:', labelNumberFromQR);
-    labelNumberFromQR = labelNumberFromQR.trim();
-    // Try to pad with zeros if it's a number and less than 4 digits
-    if (/^\d{1,4}$/.test(labelNumberFromQR)) {
-      labelNumberFromQR = labelNumberFromQR.padStart(4, '0');
-    }
-    if (!labelNumberFromQR) {
-      return res.status(400).json({ message: 'Could not decode QR code or label number not found.' });
-    }
-    const label = await Label.findOne({ labelNumber: labelNumberFromQR });
-    if (!label) {
-      return res.status(404).json({ message: 'Label not found for QR code.' });
-    }
-    res.json({
-      qrCode: label.labelNumber,
-      labelDetails: label
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  } finally {
-    // Clean up uploaded file
-    if (req.file && req.file.path) {
-      fs.unlink(req.file.path, () => {});
-    }
-  }
-});
-
-// GET /:labelNumber - fetch label details by label number
-router.get('/:labelNumber', async (req, res) => {
-  try {
-    const label = await Label.findOne({ labelNumber: req.params.labelNumber });
+    const label = await Label.findById(req.params.id);
     if (!label) {
       return res.status(404).json({ message: 'Label not found' });
     }
     res.json(label);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Check if a MUC number already exists
+router.get('/check-muc/:mucNumber', async (req, res) => {
+  try {
+    const label = await Label.findOne({ mucNumber: req.params.mucNumber });
+    res.json({ exists: !!label });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

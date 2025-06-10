@@ -40,3 +40,23 @@
 .read-the-docs {
   color: #888;
 } */
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-layout {
+  display: flex;
+  flex: 1;
+  margin-top: 50px; /* Height of the header */
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  background-color: #f7fafc;
+  min-height: calc(100vh - 64px);
+  overflow-y: auto;
+}

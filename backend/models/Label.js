@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
 const labelSchema = new mongoose.Schema({
-  labelNumber: {
+  mucNumber: {
     type: String,
-    unique: true
+    required: true
   },
   inventoryType: {
     type: String,
@@ -44,8 +44,7 @@ const labelSchema = new mongoose.Schema({
     required: true
   },
   bundleNumber: {
-    type: String,
-    required: true
+    type: String
   },
   remark: {
     type: String
@@ -60,19 +59,10 @@ const labelSchema = new mongoose.Schema({
   }
 });
 
-// Generate unique label number before saving
-labelSchema.pre('save', async function(next) {
-  try {
-    if (!this.labelNumber) { // Only set if not already set
-      const count = await mongoose.model('Label').countDocuments();
-      const sequence = (5000 + count + 1).toString(); // Start from 5001
-      this.labelNumber = sequence;
-    }
-    this.updatedAt = Date.now();
-    next();
-  } catch (error) {
-    next(error);
-  }
+// Update timestamp before saving
+labelSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
 });
 
 module.exports = mongoose.model('Label', labelSchema); 

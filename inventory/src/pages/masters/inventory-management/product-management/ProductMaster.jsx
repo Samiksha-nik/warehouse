@@ -216,10 +216,10 @@ const ProductMaster = () => {
               required
               className="form-control"
             >
-               <option value="">- Select HSN Code -</option>
-               {hsnCodes.map(hsn => (
+              <option value="">- Select HSN Code -</option>
+              {hsnCodes.map(hsn => (
                 <option key={hsn._id} value={hsn._id}>
-                  {hsn.hsnCode} ({hsn.sgst + hsn.cgst + hsn.igst}%) {/* Display HSN code and total tax % */}
+                  {hsn.hsnCode}
                 </option>
               ))}
             </select>

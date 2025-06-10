@@ -13,7 +13,6 @@ const generateInwardNumber = (lastNumber = 0) => {
 };
 
 const StockTransferInward = ({ showForm, showList }) => {
-  console.log('showList:', showList);
   const [transfers, setTransfers] = useState([]);
   const [message, setMessage] = useState({ text: '', type: '' });
   const [formData, setFormData] = useState({
@@ -37,10 +36,51 @@ const StockTransferInward = ({ showForm, showList }) => {
     destination: '',
     transporter: '',
     productPhoto: null,
-    status: 'Pending',
     type: 'inward'
   });
   const [lastInwardNumber, setLastInwardNumber] = useState(0);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMessage, setDialogMessage] = useState('');
+
+  // Fetch last inward number for auto-increment
+  useEffect(() => {
+    const fetchLastInwardNumber = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/stock-transfers-inward');
+        let maxNumber = 0;
+        
+        if (response.data && response.data.length > 0) {
+          // Find the highest inward number
+          response.data.forEach(transfer => {
+            const match = transfer.inwardNumber.match(/(\d{3})$/);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (num > maxNumber) {
+                maxNumber = num;
+              }
+            }
+          });
+        }
+        
+        setLastInwardNumber(maxNumber);
+        setFormData(prev => ({
+          ...prev,
+          inwardNumber: generateInwardNumber(maxNumber)
+        }));
+      } catch (err) {
+        console.error('Error fetching last inward number:', err);
+        setLastInwardNumber(0);
+        setFormData(prev => ({
+          ...prev,
+          inwardNumber: generateInwardNumber(0)
+        }));
+      }
+    };
+    
+    if (showForm) {
+      fetchLastInwardNumber();
+    }
+  }, [showForm]);
 
   // Set current date and time on mount
   useEffect(() => {
@@ -53,33 +93,6 @@ const StockTransferInward = ({ showForm, showList }) => {
       }));
     }
   }, [showForm]);
-
-  // Fetch last inward number for auto-increment
-  useEffect(() => {
-    const fetchLastInwardNumber = async () => {
-      try {
-        const response = await axios.get('http://localhost:5000/api/stock-transfers-inward');
-        if (response.data && response.data.length > 0) {
-          // Extract last number from the latest inwardNumber
-          const last = response.data[0].inwardNumber;
-          if (last) {
-            const match = last.match(/(\d{3})$/);
-            setLastInwardNumber(match ? parseInt(match[1], 10) : 0);
-          }
-        }
-      } catch (err) {
-        setLastInwardNumber(0);
-      }
-    };
-    if (showForm) fetchLastInwardNumber();
-  }, [showForm]);
-
-  // Set inward number when lastInwardNumber changes
-  useEffect(() => {
-    if (showForm) {
-      setFormData(prev => ({ ...prev, inwardNumber: generateInwardNumber(lastInwardNumber) }));
-    }
-  }, [lastInwardNumber, showForm]);
 
   // Calculate total MM whenever length, width, or thickness changes
   useEffect(() => {
@@ -97,32 +110,58 @@ const StockTransferInward = ({ showForm, showList }) => {
     calculateTotalMm();
   }, [formData.length, formData.width, formData.thickness]);
 
-  // Fetch label details by MUC number
+  // Fetch label details by MUC number from manual label list
   const fetchLabelDetails = async (mucNumber) => {
     try {
-      // Replace with your actual label API endpoint and query param
       const response = await axios.get(`http://localhost:5000/api/labels?mucNumber=${mucNumber}`);
       if (response.data && response.data.length > 0) {
         const label = response.data[0];
-        console.log(label); // Debug: see what the label API returns
         setFormData(prev => ({
           ...prev,
           productName: label.productName || '',
           unit: label.unit || '',
-          grade: label.grade || label.gradeValue || '',
+          grade: label.gradeValue || '',
           length: label.length || '',
           width: label.width || '',
           thickness: label.thickness || '',
-          totalMm: label.totalMm || '',
+          totalMm: label.totalMM || '',
           quantity: label.quantity || '',
           bundleNumber: label.bundleNumber || ''
         }));
-        setMessage({ text: 'Label details fetched!', type: 'success' });
+        setMessage({ text: 'Label details fetched from manual label.', type: 'success' });
       } else {
-        setMessage({ text: 'No label found for this MUC number.', type: 'error' });
+        setFormData(prev => ({
+          ...prev,
+          productName: '',
+          unit: '',
+          grade: '',
+          length: '',
+          width: '',
+          thickness: '',
+          totalMm: '',
+          quantity: '',
+          bundleNumber: ''
+        }));
+        setMessage({ text: 'This MUC number does not exist in manual label list.', type: 'error' });
+        setDialogMessage('This MUC number does not exist in manual label list.');
+        setDialogOpen(true);
       }
     } catch (err) {
-      setMessage({ text: 'Error fetching label details.', type: 'error' });
+      setFormData(prev => ({
+        ...prev,
+        productName: '',
+        unit: '',
+        grade: '',
+        length: '',
+        width: '',
+        thickness: '',
+        totalMm: '',
+        quantity: '',
+        bundleNumber: ''
+      }));
+      setMessage({ text: 'This MUC number does not exist in manual label list.', type: 'error' });
+      setDialogMessage('This MUC number does not exist in manual label list.');
+      setDialogOpen(true);
     }
   };
 
@@ -151,7 +190,6 @@ const StockTransferInward = ({ showForm, showList }) => {
     try {
       const response = await axios.get('http://localhost:5000/api/stock-transfers-inward');
       setTransfers(response.data);
-      console.log('Fetched transfers:', response.data);
     } catch (err) {
       setMessage({ text: 'Error fetching transfers', type: 'error' });
     }
@@ -161,63 +199,98 @@ const StockTransferInward = ({ showForm, showList }) => {
     e.preventDefault();
     try {
       const submitData = new FormData();
+      
+      // Format numeric fields
+      const numericFields = ['length', 'width', 'thickness', 'totalMm', 'quantity'];
+      numericFields.forEach(field => {
+        submitData.append(field, parseFloat(formData[field]) || 0);
+      });
+
+      // Format date
+      const formattedDate = new Date(formData.date).toISOString();
+      
+      // Add all other fields
       submitData.append('mucNumber', formData.mucNumber);
       submitData.append('inwardNumber', formData.inwardNumber);
-      submitData.append('date', formData.date);
+      submitData.append('date', formattedDate);
       submitData.append('time', formData.time);
       submitData.append('fromLocation', formData.fromLocation);
       submitData.append('toLocation', formData.toLocation);
       submitData.append('productName', formData.productName);
       submitData.append('unit', formData.unit);
       submitData.append('grade', formData.grade);
-      submitData.append('length', formData.length);
-      submitData.append('width', formData.width);
-      submitData.append('thickness', formData.thickness);
-      submitData.append('totalMm', formData.totalMm);
-      submitData.append('quantity', formData.quantity);
       submitData.append('bundleNumber', formData.bundleNumber);
-      submitData.append('remarks', formData.remarks);
-      submitData.append('vehicleNumber', formData.vehicleNumber);
-      submitData.append('destination', formData.destination);
-      submitData.append('transporter', formData.transporter);
-      submitData.append('status', 'Pending');
+      submitData.append('remarks', formData.remarks || '');
+      submitData.append('vehicleNumber', formData.vehicleNumber || '');
+      submitData.append('destination', formData.destination || '');
+      submitData.append('transporter', formData.transporter || '');
+      
       if (formData.productPhoto) {
         submitData.append('productPhoto', formData.productPhoto);
       }
-      await axios.post('http://localhost:5000/api/stock-transfers-inward', submitData, {
+
+      const response = await axios.post('http://localhost:5000/api/stock-transfers-inward', submitData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setMessage({ text: 'Transfer saved successfully!', type: 'success' });
-      setFormData({
-        mucNumber: '',
-        inwardNumber: generateInwardNumber(lastInwardNumber + 1),
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        fromLocation: '',
-        toLocation: '',
-        productName: '',
-        unit: '',
-        grade: '',
-        length: '',
-        width: '',
-        thickness: '',
-        totalMm: '',
-        quantity: '',
-        bundleNumber: '',
-        remarks: '',
-        vehicleNumber: '',
-        destination: '',
-        transporter: '',
-        productPhoto: null,
-        status: 'Pending',
-        type: 'inward'
-      });
-      fetchTransfers();
-      setTimeout(() => {
-        setMessage({ text: '', type: '' });
-      }, 3000);
+
+      if (response.status === 201) {
+        setMessage({ text: 'Transfer saved successfully!', type: 'success' });
+        // Reset form and fetch updated data
+        fetchTransfers();
+        // Get the current highest inward number
+        const response = await axios.get('http://localhost:5000/api/stock-transfers-inward');
+        let maxNumber = 0;
+        
+        if (response.data && response.data.length > 0) {
+          response.data.forEach(transfer => {
+            const match = transfer.inwardNumber.match(/(\d{3})$/);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (num > maxNumber) {
+                maxNumber = num;
+              }
+            }
+          });
+        }
+
+        // Reset form with next inward number
+        setLastInwardNumber(maxNumber);
+        setFormData({
+          mucNumber: '',
+          inwardNumber: generateInwardNumber(maxNumber),
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          fromLocation: '',
+          toLocation: '',
+          productName: '',
+          unit: '',
+          grade: '',
+          length: '',
+          width: '',
+          thickness: '',
+          totalMm: '',
+          quantity: '',
+          bundleNumber: '',
+          remarks: '',
+          vehicleNumber: '',
+          destination: '',
+          transporter: '',
+          productPhoto: null,
+          type: 'inward'
+        });
+
+        setTimeout(() => {
+          setMessage({ text: '', type: '' });
+        }, 3000);
+      }
     } catch (err) {
-      setMessage({ text: 'Error saving transfer: ' + (err.response?.data?.message || err.message), type: 'error' });
+      console.error('Error saving transfer:', err);
+      console.error('Error response:', err.response?.data);
+      const errorMessage = err.response?.data?.message || err.message;
+      setMessage({ 
+        text: `Error saving transfer: ${errorMessage}. Please check all required fields are filled correctly.`, 
+        type: 'error' 
+      });
     }
   };
 
@@ -264,7 +337,7 @@ const StockTransferInward = ({ showForm, showList }) => {
         }
       `}</style>
       <form onSubmit={handleSubmit} className="form-container" encType="multipart/form-data">
-        <h2>New Inward Transfer</h2>
+        <h2>Inward Transfer</h2>
         {message.text && (
           <div className={`message ${message.type}`}>{message.text}</div>
         )}
@@ -422,13 +495,12 @@ const StockTransferInward = ({ showForm, showList }) => {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label>Bundle Number*</label>
+              <label>Bundle Number</label>
               <input
                 type="text"
                 name="bundleNumber"
                 value={formData.bundleNumber}
-                readOnly
-                required
+                onChange={handleInputChange}
               />
             </div>
           </div>
@@ -503,20 +575,19 @@ const StockTransferInward = ({ showForm, showList }) => {
             type="text"
             placeholder="Search transfers..."
             className="form-control search-input"
-            // onChange={handleSearch} // Optional: implement search logic
           />
         </div>
       </div>
       <div className="table-container">
-        {console.log('Transfers:', transfers)}
         {message.text && (
           <div className={`message ${message.type}`}>{message.text}</div>
         )}
         <table className="data-table">
           <thead>
             <tr>
-              <th>MUC Number</th>
               <th>Date</th>
+              <th>MUC Number</th>
+              <th>Inward Number</th>
               <th>From Location</th>
               <th>To Location</th>
               <th>Product Name</th>
@@ -528,7 +599,6 @@ const StockTransferInward = ({ showForm, showList }) => {
               <th>Total MM</th>
               <th>Quantity</th>
               <th>Bundle Number</th>
-              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -540,8 +610,9 @@ const StockTransferInward = ({ showForm, showList }) => {
             ) : (
               transfers.map(transfer => (
                 <tr key={transfer._id}>
-                  <td>{transfer.mucNumber || ''}</td>
                   <td>{transfer.date ? new Date(transfer.date).toLocaleDateString() : ''}</td>
+                  <td>{transfer.mucNumber || ''}</td>
+                  <td>{transfer.inwardNumber || ''}</td>
                   <td>{transfer.fromLocation || ''}</td>
                   <td>{transfer.toLocation || ''}</td>
                   <td>{transfer.productName || ''}</td>
@@ -553,11 +624,6 @@ const StockTransferInward = ({ showForm, showList }) => {
                   <td>{transfer.totalMm || ''}</td>
                   <td>{transfer.quantity || ''}</td>
                   <td>{transfer.bundleNumber || ''}</td>
-                  <td>
-                    <span className={`status-badge ${transfer.status ? transfer.status.toLowerCase() : ''}`}>
-                      {transfer.status || ''}
-                    </span>
-                  </td>
                   <td>
                     <button
                       className="btn-icon"
@@ -579,6 +645,19 @@ const StockTransferInward = ({ showForm, showList }) => {
     <div className="container">
       {showForm && renderForm()}
       {showList && renderList()}
+      {dialogOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{
+            background: 'white', padding: 24, borderRadius: 8, minWidth: 300, boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ marginBottom: 16 }}>{dialogMessage}</div>
+            <button onClick={() => setDialogOpen(false)} style={{ padding: '6px 18px' }}>OK</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

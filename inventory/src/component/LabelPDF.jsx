@@ -1,165 +1,98 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
-import QRCode from 'qrcode';
+import JsBarcode from 'jsbarcode';
 
-// Create styles
 const styles = StyleSheet.create({
   page: {
-    flexDirection: 'column',
-    backgroundColor: '#ffffff',
-    padding: 30,
-  },
-  header: {
-    marginBottom: 20,
-    borderBottom: '1 solid #000',
-    paddingBottom: 10,
-  },
-  title: {
-    fontSize: 24,
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  mainRow: {
     flexDirection: 'row',
-    width: '100%',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    padding: 20, // adds spacing on all sides, including left
   },
-  section: {
-    margin: 10,
-    padding: 10,
-    width: '65%',
+  leftColumn: {
+    flex: 2,
+    paddingLeft: 50, // left spacing specifically
+    paddingRight: 10,
+  },
+  rightColumn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 20,
+    marginBottom:30
   },
   row: {
     flexDirection: 'row',
-    marginBottom: 5,
+    marginBottom: 6,
   },
   label: {
-    width: '40%',
+    width: 100,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   value: {
-    width: '60%',
+    fontSize: 10,
   },
-  footer: {
-    marginTop: 20,
-    borderTop: '1 solid #000',
-    paddingTop: 10,
-    textAlign: 'center',
-  },
-  qrCode: {
-    padding: 10,
-    border: '1 solid #000',
-    textAlign: 'center',
-    alignItems: 'center',
-    width: '30%',
+  barcodeImage: {
+    width: 100,
+    height: 50,
     marginTop: 10,
   },
-  qrImage: {
-    width: 120,
-    height: 120,
-    marginBottom: 10,
-  }
+  mucNumber: {
+    fontSize: 10,
+    marginTop: 5,
+  },
 });
 
-// Create Document Component
 const LabelPDF = ({ labelData }) => {
-  // Create QR code data string with current fields
-  const qrData = JSON.stringify({
-    labelNumber: labelData.labelNumber,
-    inventoryType: labelData.inventoryType,
-    productName: labelData.productName,
-    unit: labelData.unit,
-    gradeValue: labelData.gradeValue,
-    length: labelData.length,
-    width: labelData.width,
-    thickness: labelData.thickness,
-    totalMM: labelData.totalMM,
-    quantity: labelData.quantity,
-    bundleNumber: labelData.bundleNumber,
-    remark: labelData.remark
-  });
+  const [barcodeImage, setBarcodeImage] = useState('');
 
-  // Generate QR code as data URL
-  const [qrCodeUrl, setQrCodeUrl] = React.useState('');
-  
-  React.useEffect(() => {
-    QRCode.toDataURL(qrData, { errorCorrectionLevel: 'H' })
-      .then(url => {
-        setQrCodeUrl(url);
-      })
-      .catch(err => {
-        console.error('Error generating QR code:', err);
-      });
-  }, [qrData]);
+  useEffect(() => {
+    const barcodeValue = labelData.mucNumber || '0000';
+    const canvas = document.createElement('canvas');
+    JsBarcode(canvas, barcodeValue, {
+      format: 'CODE128',
+      width: 1.5,
+      height: 30,
+      displayValue: false,
+    });
+    setBarcodeImage(canvas.toDataURL());
+  }, [labelData]);
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
-          <Text style={{ fontSize: 20, textAlign: 'center', fontWeight: 'bold', marginBottom: 8 }}>Boujje Balancee</Text>
-          <Text style={styles.title}>Product Label</Text>
+      <Page size={[288, 360]} style={styles.page}>
+        {/* Left Side: Details */}
+        <View style={styles.leftColumn}>
+          {[
+            ['Seller', 'BOUJEE BALANCEE PRIVATE LIMITED'],
+            ['PO No', labelData.poNumber],
+            ['Bundle No', labelData.bundleNumber],
+            ['Product', labelData.productName],
+            ['Grade', labelData.gradeValue],
+            ['Length', labelData.length],
+            ['Width', labelData.width],
+            ['Thickness', labelData.thickness],
+            ['Sheets', labelData.sheets],
+            ['Total MM', labelData.totalMM],
+            ['Total Weight', labelData.weight],
+            ['Date', labelData.date],
+            ['Remark', labelData.remark],
+          ].map(([label, value], index) => (
+            <View key={index} style={styles.row}>
+              <Text style={styles.label}>{label}:</Text>
+              <Text style={styles.value}>{value}</Text>
+            </View>
+          ))}
         </View>
 
-        <View style={styles.mainRow}>
-          <View style={styles.section}>
-            <View style={styles.row}>
-              <Text style={styles.label}>Inventory Type:</Text>
-              <Text style={styles.value}>{labelData.inventoryType}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Product Name:</Text>
-              <Text style={styles.value}>{labelData.productName}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Unit:</Text>
-              <Text style={styles.value}>{labelData.unit}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Grade Value:</Text>
-              <Text style={styles.value}>{labelData.gradeValue}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Length:</Text>
-              <Text style={styles.value}>{labelData.length}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Width:</Text>
-              <Text style={styles.value}>{labelData.width}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Thickness:</Text>
-              <Text style={styles.value}>{labelData.thickness}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Total MM:</Text>
-              <Text style={styles.value}>{labelData.totalMM}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Quantity:</Text>
-              <Text style={styles.value}>{labelData.quantity}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Bundle Number:</Text>
-              <Text style={styles.value}>{labelData.bundleNumber}</Text>
-            </View>
-            {labelData.remark && (
-              <View style={styles.row}>
-                <Text style={styles.label}>Remark:</Text>
-                <Text style={styles.value}>{labelData.remark}</Text>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.qrCode}>
-            {qrCodeUrl && <Image src={qrCodeUrl} style={styles.qrImage} />}
-            <Text style={{ fontSize: 12, marginTop: 5, fontWeight: 'bold' }}>Label Number: {labelData.labelNumber}</Text>
-            <Text style={{ fontSize: 10, marginTop: 5 }}>Scan QR code for more details</Text>
-          </View>
+        {/* Right Side: Barcode */}
+        <View style={styles.rightColumn}>
+          {barcodeImage && <Image src={barcodeImage} style={styles.barcodeImage} />}
+          <Text style={styles.mucNumber}>MUC: {labelData.mucNumber}</Text>
         </View>
       </Page>
     </Document>
   );
 };
 
-export default LabelPDF; 
+export default LabelPDF;

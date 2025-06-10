@@ -4,6 +4,7 @@ import { ToastContainer } from 'react-toastify';
 import Sidebar from './component/Sidebar';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import DashboardOverview from './pages/DashboardOverview';
+import Header from './component/Header';
 
 // Master Pages - Company & Location
 import CountryMaster from './pages/masters/company-location/CountryMaster';
@@ -39,6 +40,8 @@ import ReturnRefund from './pages/operations/ReturnRefund';
 function App() {
   return (
     <BrowserRouter>
+      <div className="app">
+        <Header />
       <div className="app-layout">
         <Sidebar />
         <main className="main-content">
@@ -79,6 +82,7 @@ function App() {
           </Routes>
         </main>
         <ToastContainer position="top-right" autoClose={3000} />
+        </div>
       </div>
     </BrowserRouter>
   );

@@ -1,41 +1,134 @@
 const express = require('express');
 const router = express.Router();
 const StockTransferOutward = require('../models/StockTransferOutward');
+const multer = require('multer');
+const path = require('path');
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, '../uploads'));
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  }
+});
+const upload = multer({ storage });
+
+// Check if MUC number exists
+router.get('/check-muc/:mucNumber', async (req, res) => {
+  try {
+    const transfer = await StockTransferOutward.findOne({ mucNumber: req.params.mucNumber });
+    res.json({ exists: !!transfer });
+  } catch (err) {
+    console.error('Error checking MUC number:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
 
 // Get all outward transfers
 router.get('/', async (req, res) => {
   try {
-    const transfers = await StockTransferOutward.find().sort({ date: -1 });
+    const transfers = await StockTransferOutward.find()
+      .select('mucNumber date fromLocation toLocation productName unit grade length width thickness totalMm quantity bundleNumber status vehicleNumber destination transporter productPhoto')
+      .sort({ date: -1 });
+    console.log('Sending transfers:', transfers); // Debug log
     res.json(transfers);
   } catch (err) {
+    console.error('Error fetching transfers:', err);
     res.status(500).json({ message: err.message });
   }
 });
 
 // Create new outward transfer
-router.post('/', async (req, res) => {
-  const transfer = new StockTransferOutward({
-    date: req.body.date,
-    fromLocation: req.body.fromLocation,
-    toLocation: req.body.toLocation,
-    productName: req.body.productName,
-    unit: req.body.unit,
-    grade: req.body.grade,
-    length: req.body.length,
-    width: req.body.width,
-    thickness: req.body.thickness,
-    totalMm: req.body.totalMm,
-    quantity: req.body.quantity,
-    bundleNumber: req.body.bundleNumber,
-    remarks: req.body.remarks,
-    status: req.body.status
-  });
-
+router.post('/', upload.single('productPhoto'), async (req, res) => {
   try {
-    const newTransfer = await transfer.save();
-    res.status(201).json(newTransfer);
+    console.log('Received transfer request:', req.body);
+
+    // Validate required fields
+    const requiredFields = [
+      'mucNumber',
+      'date',
+      'fromLocation',
+      'toLocation',
+      'productName',
+      'unit',
+      'grade',
+      'length',
+      'width',
+      'thickness',
+      'totalMm',
+      'quantity'
+    ];
+
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    if (missingFields.length > 0) {
+      return res.status(400).json({ 
+        message: `Missing required fields: ${missingFields.join(', ')}` 
+      });
+    }
+
+    // Validate numeric fields
+    const numericFields = ['length', 'width', 'thickness', 'totalMm', 'quantity'];
+    const invalidNumericFields = numericFields.filter(field => 
+      isNaN(parseFloat(req.body[field])) || parseFloat(req.body[field]) <= 0
+    );
+    
+    if (invalidNumericFields.length > 0) {
+      return res.status(400).json({ 
+        message: `Invalid numeric values for fields: ${invalidNumericFields.join(', ')}` 
+      });
+    }
+
+    // Check for duplicate MUC number
+    const existingTransfer = await StockTransferOutward.findOne({ 
+      mucNumber: req.body.mucNumber 
+    });
+    
+    if (existingTransfer) {
+      return res.status(400).json({ 
+        message: 'This MUC number is already used in an outward transfer.' 
+      });
+    }
+
+    const transfer = new StockTransferOutward({
+      mucNumber: req.body.mucNumber,
+      date: new Date(req.body.date),
+      fromLocation: req.body.fromLocation,
+      toLocation: req.body.toLocation,
+      productName: req.body.productName,
+      unit: req.body.unit,
+      grade: req.body.grade,
+      length: parseFloat(req.body.length),
+      width: parseFloat(req.body.width),
+      thickness: parseFloat(req.body.thickness),
+      totalMm: parseFloat(req.body.totalMm),
+      quantity: parseFloat(req.body.quantity),
+      bundleNumber: req.body.bundleNumber || '',
+      remarks: req.body.remarks || '',
+      status: req.body.status || 'Pending',
+      vehicleNumber: req.body.vehicleNumber || '',
+      destination: req.body.destination || '',
+      transporter: req.body.transporter || '',
+      productPhoto: req.file ? req.file.filename : undefined
+    });
+
+    const savedTransfer = await transfer.save();
+    console.log('Saved transfer:', savedTransfer);
+    res.status(201).json(savedTransfer);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    console.error('Error saving transfer:', err);
+    if (err.code === 11000) {
+      res.status(400).json({ 
+        message: 'This MUC number is already used in an outward transfer.' 
+      });
+    } else {
+      res.status(500).json({ 
+        message: err.message,
+        details: err.errors // Include validation errors if any
+      });
+    }
   }
 });
 

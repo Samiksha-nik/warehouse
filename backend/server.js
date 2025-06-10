@@ -1,4 +1,5 @@
 // backend/server.js
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -20,15 +21,16 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// MongoDB Connection URL (replace with your actual URL)
-const uri = 'mongodb://localhost:27017/inventoryDB'; 
+// MongoDB Connection using environment variable
+const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/inventoryDB';
 
-mongoose.connect(uri);
-
-const connection = mongoose.connection;
-connection.once('open', () => {
-  console.log('MongoDB database connection established successfully');
-})
+mongoose.connect(uri)
+  .then(() => {
+    console.log('MongoDB database connection established successfully');
+  })
+  .catch((error) => {
+    console.error('MongoDB connection error:', error);
+  });
 
 // Import routes
 const countriesRouter = require('./routes/countries');
@@ -97,5 +99,5 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Start the server
 app.listen(port, () => {
-  console.log(`Server is running on port: ${port}`);
-}); 
+  console.log(Server is running on port: ${port});
+});

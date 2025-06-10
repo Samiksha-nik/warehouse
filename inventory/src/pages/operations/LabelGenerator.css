@@ -3,7 +3,7 @@
 }
 
 .page-header {
-  margin-bottom: 2rem;
+  margin-bottom: 5rem;
 }
 
 .page-header h1 {
@@ -18,4 +18,124 @@
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   padding: 1.5rem;
+  margin-top: 5rem;
+ 
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.pagination button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background-color: white;
+  color: #374151;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination button:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: #f8f9fa;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #dee2e6;
+  margin-bottom: 1rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.form-control {
+  min-width: 120px;
+  max-width: 180px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  font-size: 0.95rem;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 0.4rem 1rem;
+  font-size: 0.95rem;
+  height: fit-content;
+  white-space: nowrap;
+  min-width: 70px;
+}
+
+.search-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.search-input-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.search-input-group input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-input-group .btn-icon {
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  color: #6c757d;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-input-group .btn-icon:hover {
+  color: #dc3545;
+}
+
+@media (max-width: 900px) {
+  .filter-row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .form-control {
+    min-width: 100px;
+    max-width: 140px;
+    font-size: 0.9rem;
+  }
+  .btn-primary,
+  .btn-secondary {
+    font-size: 0.9rem;
+    min-width: 60px;
+    padding: 0.3rem 0.7rem;
+  }
 } 
