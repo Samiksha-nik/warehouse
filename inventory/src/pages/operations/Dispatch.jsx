@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import '../../styles/shared.css';
 import { FaTrash, FaEdit, FaQrcode } from 'react-icons/fa';
@@ -39,13 +39,16 @@ const Dispatch = () => {
     dispatchDate: '',
     orderId: '',
     invoice: null,
-    qrCode: null
+    qrCode: null,
+    address: '',
+    marketplace: ''
   });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [productValid, setProductValid] = useState(false);
   const [message, setMessage] = useState('');
+  const productPhotoInputRef = useRef(null);
 
   useEffect(() => {
     fetchCustomers();
@@ -110,7 +113,7 @@ const Dispatch = () => {
         setFormData(prev => ({ ...prev, customer: response.data[0].customerName }));
       }
     } catch (err) {
-      setFormData(prev => ({ ...prev, customer: '' }));
+      console.error('Error fetching assignment:', err);
     }
   };
 
@@ -133,12 +136,15 @@ const Dispatch = () => {
           bundleNumber: assignment.labelDetails?.bundleNumber || '',
           fromLocation: assignment.locationStock || '',
           customer: assignment.customerName || '',
+          marketplace: assignment.marketplace || '',
+          address: assignment.address || ''
         }));
         setProductValid(true);
         setMessage('');
       } else {
         setProductValid(false);
         setMessage('No assignment found for this MUC number.');
+        // Only clear product-specific details, DO NOT clear customer/fromLocation here
         setFormData(prev => ({
           ...prev,
           productName: '',
@@ -150,14 +156,34 @@ const Dispatch = () => {
           totalMm: '',
           quantity: '',
           bundleNumber: '',
-          fromLocation: '',
+          // fromLocation: '', // REMOVED: Allow manual input
+          // customer: '', // REMOVED: Allow manual input
+          marketplace: '',
+          address: ''
         }));
-        alert('This MUC number is not assigned in inventory. Please enter a valid MUC number from the assigned inventory list.');
       }
     } catch (err) {
       setProductValid(false);
       setMessage('Error fetching assignment details.');
-      alert('Error fetching assignment details.');
+      // Only clear product-specific details on error, DO NOT clear customer/fromLocation here
+      setFormData(prev => ({
+        ...prev,
+        productName: '',
+        unit: '',
+        grade: '',
+        length: '',
+        width: '',
+        thickness: '',
+        totalMm: '',
+        quantity: '',
+        bundleNumber: '',
+        // fromLocation: '', // REMOVED: Allow manual input
+        // customer: '', // REMOVED: Allow manual input
+        toLocation: '',
+        orderId: '',
+        marketplace: '',
+        address: ''
+      }));
     }
   };
 
@@ -166,6 +192,7 @@ const Dispatch = () => {
     if (name === 'invoice' || name === 'productPhoto') {
       setFormData(prev => ({ ...prev, [name]: files[0] }));
     } else {
+      // Removed console.log statements to declutter
       setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
@@ -184,10 +211,16 @@ const Dispatch = () => {
           fetchAssignmentByLabelNumber(response.data.qrCode);
         }
       } catch (err) {
-        setFormData(prev => ({ ...prev, customer: '' }));
+        console.error('Error scanning QR code:', err);
       }
-    } else {
-      setFormData(prev => ({ ...prev, [name]: files[0] }));
+    } else if (name === 'productPhoto') {
+      setFormData(prev => ({ ...prev, productPhoto: files[0] }));
+    }
+  };
+
+  const handleScanPhoto = () => {
+    if (productPhotoInputRef.current) {
+      productPhotoInputRef.current.click();
     }
   };
 
@@ -196,8 +229,8 @@ const Dispatch = () => {
       dispatchNo: dispatch.dispatchNo,
       dispatchDate: dispatch.dispatchDate ? new Date(dispatch.dispatchDate).toISOString().split('T')[0] : '',
       customer: dispatch.customer,
-      invoice: null, // File input is always null for editing
-      qrCode: null  // File input is always null for editing
+      invoice: null,
+      qrCode: null
     });
     setEditingId(dispatch._id);
     setActiveTab('form');
@@ -246,9 +279,12 @@ const Dispatch = () => {
           totalMm: '',
           quantity: '',
           bundleNumber: '',
-          fromLocation: '',
+          // fromLocation: '', // REMOVED: Allow manual input
+          // customer: '',
           toLocation: '',
-          orderId: ''
+          orderId: '',
+          marketplace: '',
+          address: ''
         }));
         return;
       }
@@ -267,7 +303,9 @@ const Dispatch = () => {
         bundleNumber: product.labelDetails?.bundleNumber || '',
         fromLocation: product.locationStock || '',
         // toLocation should be manually entered as it's the destination for dispatch
-        orderId: product.orderId || '' 
+        orderId: product.orderId || '',
+        marketplace: product.marketplace || '',
+        address: product.address || ''
       }));
       
       setProductValid(true);
@@ -293,9 +331,12 @@ const Dispatch = () => {
         totalMm: '',
         quantity: '',
         bundleNumber: '',
-        fromLocation: '',
+        // fromLocation: '', // REMOVED: Allow manual input
+        // customer: '',
         toLocation: '',
-        orderId: ''
+        orderId: '',
+        marketplace: '',
+        address: ''
       }));
     }
   };
@@ -335,6 +376,8 @@ const Dispatch = () => {
       data.append('time', formData.time);
       data.append('customer', formData.customer);
       data.append('orderId', formData.orderId);
+      data.append('address', formData.address);
+      data.append('marketplace', formData.marketplace);
       if (formData.invoice) data.append('invoice', formData.invoice);
       if (formData.productPhoto) data.append('productPhoto', formData.productPhoto);
 
@@ -420,6 +463,7 @@ const Dispatch = () => {
                 </div>
                 <div className="form-group">
                   <label>Customer*</label>
+                  {console.log('Customer field readOnly:', productValid && !!formData.customer, 'productValid:', productValid, 'formData.customer:', formData.customer)}
                   <input
                     type="text"
                     name="customer"
@@ -433,11 +477,43 @@ const Dispatch = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label>From Location*</label>
-                  <input type="text" name="fromLocation" value={formData.fromLocation} onChange={handleInputChange} className="form-input" required />
+                  {console.log('From Location field readOnly:', productValid && !!formData.fromLocation, 'productValid:', productValid, 'formData.fromLocation:', formData.fromLocation)}
+                  <input 
+                    type="text" 
+                    name="fromLocation" 
+                    value={formData.fromLocation} 
+                    onChange={handleInputChange} 
+                    className="form-input" 
+                    required 
+                  />
                 </div>
                 <div className="form-group">
                   <label>To Location*</label>
                   <input type="text" name="toLocation" value={formData.toLocation} onChange={handleInputChange} className="form-input" required />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Address*</label>
+                  <textarea
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    className="form-input"
+                    required
+                    rows="3"
+                    placeholder="Enter delivery address"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Marketplace</label>
+                  <input
+                    type="text"
+                    name="marketplace"
+                    value={formData.marketplace}
+                    readOnly
+                    className="form-input readonly-input"
+                  />
                 </div>
               </div>
             </div>
@@ -489,19 +565,44 @@ const Dispatch = () => {
                 </div>
                 <div className="form-group">
                   <label>Order ID</label>
-                  <input type="text" name="orderId" value={formData.orderId} readOnly className="form-input" />
+                  <input
+                    type="text"
+                    name="orderId"
+                    value={formData.orderId}
+                    onChange={handleInputChange}
+                    className="form-input"
+                    required
+                    readOnly
+                  />
                 </div>
               </div>
             </div>
             <div className="form-block">
               <div className="form-row">
                 <div className="form-group">
-                  <label>Upload Invoice*</label>
-                  <input type="file" name="invoice" accept="application/pdf,image/*" onChange={handleInputChange} className="form-input" required />
+                  <label>Invoice</label>
+                  <input
+                    type="file"
+                    name="invoice"
+                    onChange={handleInputChange}
+                    className="form-input"
+                  />
                 </div>
                 <div className="form-group">
-                  <label>Upload Product Photo*</label>
-                  <input type="file" name="productPhoto" accept="image/*" onChange={handleInputChange} className="form-input" required />
+                  <label>Product Photo</label>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="file"
+                      name="productPhoto"
+                      onChange={handleInputChange}
+                      className="form-input"
+                      style={{ flex: 1, marginRight: '10px' }}
+                      accept="image/*"
+                      capture="camera"
+                      ref={productPhotoInputRef}
+                    />
+                    <button type="button" className="btn-secondary" onClick={handleScanPhoto}>Scan Photo</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -515,25 +616,51 @@ const Dispatch = () => {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Dispatch No</th>
                     <th>Date</th>
+                    <th>Dispatch No.</th>
+                    <th>MUC Number</th>
+                    <th>Product Photo</th>
                     <th>Customer</th>
                     <th>Order ID</th>
-                    <th>Invoice</th>
+                    <th>Invoice PDF</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {dispatches.map(d => (
-                    <tr key={d._id}>
-                      <td>{d.dispatchNo}</td>
-                      <td>{d.dispatchDate ? new Date(d.dispatchDate).toLocaleDateString() : '-'}</td>
-                      <td>{d.customer}</td>
-                      <td>{d.orderId}</td>
-                      <td>{d.invoiceUrl ? <a href={`http://localhost:5000${d.invoiceUrl}`} target="_blank" rel="noopener noreferrer">View</a> : '-'}</td>
+                  {dispatches.map(dispatch => (
+                    <tr key={dispatch._id}>
+                      <td>{new Date(dispatch.dispatchDate).toLocaleDateString()}</td>
+                      <td>{dispatch.dispatchNo}</td>
+                      <td>{dispatch.mucNumber}</td>
                       <td>
-                        <button className="btn-icon" title="Edit" onClick={() => handleEditDispatch(d)}><FaEdit /></button>
-                        <button className="btn-icon" title="Delete" onClick={() => handleDeleteDispatch(d._id)}><FaTrash /></button>
+                        {dispatch.productPhotoUrl ? (
+                          <a 
+                            href={`http://localhost:5000/${dispatch.productPhotoUrl}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                          >
+                            View Photo
+                          </a>
+                        ) : (
+                          '-' // Display a dash if no photo URL
+                        )}
+                      </td>
+                      <td>{dispatch.customer}</td>
+                      <td>{dispatch.orderId}</td>
+                      <td>
+                        {dispatch.invoiceUrl ? (
+                          <a 
+                            href={`http://localhost:5000${dispatch.invoiceUrl}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                          >
+                            View
+                          </a>
+                        ) : '-'}
+                      </td>
+                      <td>
+                        <button className="btn-icon" title="Edit" onClick={() => handleEditDispatch(dispatch)}><FaEdit /></button>
+                        <button className="btn-icon" title="Delete" onClick={() => handleDeleteDispatch(dispatch._id)}><FaTrash /></button>
                       </td>
                     </tr>
                   ))}

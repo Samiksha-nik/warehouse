@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaEdit } from 'react-icons/fa';
 import '../../styles/shared.css';
+import { toast } from 'react-hot-toast';
 
 // Debounce function to limit API calls
 const debounce = (func, wait) => {
@@ -36,9 +37,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
     totalMm: '',
     quantity: '',
     bundleNumber: '',
-    orderId: '',
     remarks: '',
-    status: 'Pending',
     type: 'outward',
     vehicleNumber: '',
     destination: '',
@@ -48,6 +47,11 @@ const StockTransferOutward = ({ showForm, showList }) => {
   const [mucValid, setMucValid] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMessage, setDialogMessage] = useState('');
+  const [outwardTransfers, setOutwardTransfers] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (showList) {
@@ -229,8 +233,15 @@ const StockTransferOutward = ({ showForm, showList }) => {
       const response = await axios.get('http://localhost:5000/api/stock-transfers-outward');
       setTransfers(response.data);
       setFilteredTransfers(response.data);
+      setOutwardTransfers(response.data);
+      setLocations(response.data.map(transfer => ({
+        value: transfer.fromLocation,
+        label: transfer.fromLocation
+      })));
     } catch (err) {
       setMessage({ text: 'Error fetching transfers', type: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -247,53 +258,29 @@ const StockTransferOutward = ({ showForm, showList }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Prevent submission if MUC is not valid
-    if (!mucValid) {
-      setMessage({ text: 'Please enter a unique MUC number before submitting.', type: 'error' });
-      setDialogMessage('Please enter a unique MUC number before submitting.');
-      setDialogOpen(true);
-      return;
-    }
-
     try {
-      const submitData = new FormData();
-      submitData.append('mucNumber', formData.mucNumber);
-      submitData.append('date', formData.date);
-      submitData.append('fromLocation', formData.fromLocation);
-      submitData.append('toLocation', formData.toLocation);
-      submitData.append('productName', formData.productName);
-      submitData.append('unit', formData.unit);
-      submitData.append('grade', formData.grade);
-      submitData.append('length', formData.length);
-      submitData.append('width', formData.width);
-      submitData.append('thickness', formData.thickness);
-      submitData.append('totalMm', formData.totalMm);
-      submitData.append('quantity', formData.quantity);
-      submitData.append('bundleNumber', formData.bundleNumber);
-      submitData.append('orderId', formData.orderId);
-      submitData.append('remarks', formData.remarks);
-      submitData.append('status', formData.status);
-      submitData.append('vehicleNumber', formData.vehicleNumber);
-      submitData.append('destination', formData.destination);
-      submitData.append('transporter', formData.transporter);
-      if (formData.productPhoto) {
-        submitData.append('productPhoto', formData.productPhoto);
+      const transferData = {
+        ...formData,
+        date: formData.date,
+        time: formData.time,
+        length: Number(formData.length),
+        width: Number(formData.width),
+        thickness: Number(formData.thickness),
+        totalMm: Number(formData.totalMm),
+        quantity: Number(formData.quantity),
+      };
+
+      let response;
+      if (editingId) {
+        response = await axios.patch(`http://localhost:5000/api/stock-transfers-outward/${editingId}`, transferData);
+        toast.success('Outward Transfer updated successfully!');
+      } else {
+        response = await axios.post('http://localhost:5000/api/stock-transfers-outward', transferData);
+        toast.success('Outward Transfer created successfully!');
       }
 
-      const response = await axios.post('http://localhost:5000/api/stock-transfers-outward', submitData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      setMessage({ text: 'Transfer saved successfully!', type: 'success' });
-      
-      // Reset form
       setFormData({
         mucNumber: '',
-        date: '',
-        time: '',
-        fromLocation: '',
-        toLocation: '',
         productName: '',
         unit: '',
         grade: '',
@@ -303,32 +290,21 @@ const StockTransferOutward = ({ showForm, showList }) => {
         totalMm: '',
         quantity: '',
         bundleNumber: '',
-        orderId: '',
+        fromLocation: '',
+        toLocation: '',
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         remarks: '',
-        status: 'Pending',
         type: 'outward',
         vehicleNumber: '',
         destination: '',
         transporter: '',
         productPhoto: null
       });
-
-      // Refresh the list
+      setEditingId(null);
       fetchTransfers();
-
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setMessage({ text: '', type: '' });
-      }, 3000);
-    } catch (err) {
-      console.error('Error saving transfer:', err);
-      if (err.response && err.response.status === 400) {
-        setMessage({ text: err.response.data.message, type: 'error' });
-        setDialogMessage(err.response.data.message);
-        setDialogOpen(true);
-      } else {
-        setMessage({ text: 'Error saving transfer: ' + (err.response?.data?.message || err.message), type: 'error' });
-      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Error saving transfer');
     }
   };
 
@@ -336,16 +312,48 @@ const StockTransferOutward = ({ showForm, showList }) => {
     if (window.confirm('Are you sure you want to delete this transfer?')) {
       try {
         await axios.delete(`http://localhost:5000/api/stock-transfers-outward/${id}`);
-        setMessage({ text: 'Transfer deleted successfully!', type: 'success' });
+        toast.success('Transfer deleted successfully!');
         fetchTransfers();
-        
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-          setMessage({ text: '', type: '' });
-        }, 3000);
       } catch (err) {
-        console.error('Error deleting transfer:', err);
-        setMessage({ text: 'Error deleting transfer', type: 'error' });
+        toast.error('Error deleting transfer: ' + (err.response?.data?.message || err.message));
+      }
+    }
+  };
+
+  const handleEditTransfer = (transfer) => {
+    setEditingId(transfer._id);
+    setFormData({
+      mucNumber: transfer.mucNumber || '',
+      productName: transfer.productName || '',
+      unit: transfer.unit || '',
+      grade: transfer.grade || '',
+      length: transfer.length?.toString() || '',
+      width: transfer.width?.toString() || '',
+      thickness: transfer.thickness?.toString() || '',
+      totalMm: transfer.totalMm || '',
+      quantity: transfer.quantity?.toString() || '',
+      bundleNumber: transfer.bundleNumber || '',
+      fromLocation: transfer.fromLocation || '',
+      toLocation: transfer.toLocation || '',
+      date: transfer.date ? new Date(transfer.date).toISOString().split('T')[0] : '',
+      time: transfer.time || '',
+      remarks: transfer.remarks || '',
+      type: transfer.type || 'outward',
+      vehicleNumber: transfer.vehicleNumber || '',
+      destination: transfer.destination || '',
+      transporter: transfer.transporter || '',
+      productPhoto: null
+    });
+  };
+
+  const handleDeleteTransfer = async (id) => {
+    if (window.confirm('Are you sure you want to delete this transfer?')) {
+      try {
+        await axios.delete(`http://localhost:5000/api/stock-transfers-outward/${id}`);
+        toast.success('Transfer deleted successfully!');
+        fetchTransfers();
+      } catch (err) {
+        toast.error('Error deleting transfer: ' + (err.response?.data?.message || err.message));
       }
     }
   };
@@ -381,16 +389,6 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 required
               />
             </div>
-            <div className="form-group">
-              <label>Order ID*</label>
-              <input
-                type="text"
-                name="orderId"
-                value={formData.orderId}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
           </div>
           <div className="form-row">
             <div className="form-group">
@@ -422,25 +420,6 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 onChange={handleInputChange}
                 required
               />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Status*</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-                className="form-control"
-                required
-              >
-                <option value="Pending">Pending</option>
-                <option value="In Transit">In Transit</option>
-                <option value="Delivered">Delivered</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-                <option value="On Hold">On Hold</option>
-              </select>
             </div>
           </div>
         </div>
@@ -541,13 +520,13 @@ const StockTransferOutward = ({ showForm, showList }) => {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label>Bundle Number*</label>
+              <label htmlFor="bundleNumber">Bundle Number</label>
               <input
                 type="text"
+                id="bundleNumber"
                 name="bundleNumber"
                 value={formData.bundleNumber}
-                readOnly
-                required
+                onChange={handleInputChange}
               />
             </div>
           </div>
@@ -599,15 +578,19 @@ const StockTransferOutward = ({ showForm, showList }) => {
         </div>
         <div className="form-row">
           <div className="form-group" style={{ flex: 1 }}>
-            <label>Remarks</label>
+            <label htmlFor="remarks">Remarks</label>
             <textarea
+              id="remarks"
               name="remarks"
               value={formData.remarks}
               onChange={handleInputChange}
-            />
+              className="form-control"
+            ></textarea>
           </div>
         </div>
-        <button type="submit" className="btn-primary" disabled={!mucValid}>Save Outward Transfer</button>
+        <button type="submit" className="btn-primary" disabled={!mucValid}>
+          {editingId ? 'Update Transfer' : 'Create Transfer'}
+        </button>
       </form>
     </>
   );
@@ -652,7 +635,6 @@ const StockTransferOutward = ({ showForm, showList }) => {
               <th>Total MM</th>
               <th>Quantity</th>
               <th>Bundle Number</th>
-              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -680,14 +662,15 @@ const StockTransferOutward = ({ showForm, showList }) => {
                     <td>{transfer.quantity || ''}</td>
                     <td>{transfer.bundleNumber || ''}</td>
                     <td>
-                      <span className={`status-badge ${transfer.status ? transfer.status.toLowerCase() : ''}`}>
-                        {transfer.status || ''}
-                      </span>
-                    </td>
-                    <td>
                       <button
                         className="btn-icon"
-                        onClick={() => handleDelete(transfer._id)}
+                        onClick={() => handleEditTransfer(transfer)}
+                      >
+                        <FaEdit />
+                      </button>
+                      <button
+                        className="btn-icon"
+                        onClick={() => handleDeleteTransfer(transfer._id)}
                       >
                         <FaTrash />
                       </button>

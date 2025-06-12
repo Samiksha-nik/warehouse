@@ -7,7 +7,7 @@ import {
   FaUserFriends, FaUserTie, FaTruckLoading,
   FaBoxOpen, FaLayerGroup,
   FaRuler, FaStar, FaMedal, FaBarcode, FaUndo,
-  FaAngleDoubleLeft, FaAngleDoubleRight
+  FaAngleDoubleLeft, FaAngleDoubleRight, FaChartLine
 } from 'react-icons/fa';
 import './Sidebar.css';
 
@@ -110,6 +110,16 @@ const Sidebar = () => {
           <Link to="/stock-transfer" className={`nav-item ${isActive('/stock-transfer') ? 'active' : ''}`}><FaExchangeAlt /> {!collapsed && <span>Stock Transfer</span>}</Link>
           <Link to="/dispatch" className={`nav-item ${isActive('/dispatch') ? 'active' : ''}`}><FaTruck /> {!collapsed && <span>Dispatch</span>}</Link>
           <Link to="/operations/return-refund" className={`nav-item ${isActive('/operations/return-refund') ? 'active' : ''}`}><FaUndo /> {!collapsed && <span>Return & Refund</span>}</Link>
+        </div>
+        
+        {/* Reports Section */}
+        <div className="master-sections">
+          {!collapsed && <h3 className="master-section-title">Reports</h3>}
+          <div className="master-section">
+            <div className="master-subsection">
+              <Link to="/reports/stock-report" className={`nav-item ${isActive('/reports/stock-report') ? 'active' : ''}`}><FaChartLine /> {!collapsed && 'Stock Report'}</Link>
+            </div>
+          </div>
         </div>
       </nav>
     </div>

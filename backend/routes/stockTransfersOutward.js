@@ -31,7 +31,7 @@ router.get('/check-muc/:mucNumber', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const transfers = await StockTransferOutward.find()
-      .select('mucNumber date fromLocation toLocation productName unit grade length width thickness totalMm quantity bundleNumber status vehicleNumber destination transporter productPhoto')
+      .select('mucNumber date fromLocation toLocation productName unit grade length width thickness totalMm quantity bundleNumber vehicleNumber destination transporter productPhoto')
       .sort({ date: -1 });
     console.log('Sending transfers:', transfers); // Debug log
     res.json(transfers);
@@ -47,7 +47,7 @@ router.get('/muc/:mucNumber', async (req, res) => {
     console.log('Fetching transfer for MUC:', req.params.mucNumber);
     const transfer = await StockTransferOutward.findOne(
       { mucNumber: req.params.mucNumber },
-      'mucNumber productName unit grade length width thickness totalMm quantity bundleNumber fromLocation toLocation orderId'
+      'mucNumber productName unit grade length width thickness totalMm quantity bundleNumber fromLocation toLocation'
     ).lean(); // Use lean() for better performance
     console.log('Found transfer:', transfer);
     if (!transfer) {
@@ -78,8 +78,7 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
       'width',
       'thickness',
       'totalMm',
-      'quantity',
-      'orderId'
+      'quantity'
     ];
 
     const missingFields = requiredFields.filter(field => !req.body[field]);
@@ -126,9 +125,7 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
       totalMm: parseFloat(req.body.totalMm),
       quantity: parseFloat(req.body.quantity),
       bundleNumber: req.body.bundleNumber || '',
-      orderId: req.body.orderId,
       remarks: req.body.remarks || '',
-      status: req.body.status || 'Pending',
       vehicleNumber: req.body.vehicleNumber || '',
       destination: req.body.destination || '',
       transporter: req.body.transporter || '',
@@ -154,16 +151,36 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
 });
 
 // Update outward transfer
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', upload.single('productPhoto'), async (req, res) => {
   try {
     const transfer = await StockTransferOutward.findById(req.params.id);
     if (!transfer) {
       return res.status(404).json({ message: 'Transfer not found' });
     }
 
-    Object.keys(req.body).forEach(key => {
-      transfer[key] = req.body[key];
-    });
+    // Update fields from req.body
+    transfer.mucNumber = req.body.mucNumber || transfer.mucNumber;
+    transfer.date = req.body.date ? new Date(req.body.date) : transfer.date;
+    transfer.fromLocation = req.body.fromLocation || transfer.fromLocation;
+    transfer.toLocation = req.body.toLocation || transfer.toLocation;
+    transfer.productName = req.body.productName || transfer.productName;
+    transfer.unit = req.body.unit || transfer.unit;
+    transfer.grade = req.body.grade || transfer.grade;
+    transfer.length = parseFloat(req.body.length) || transfer.length;
+    transfer.width = parseFloat(req.body.width) || transfer.width;
+    transfer.thickness = parseFloat(req.body.thickness) || transfer.thickness;
+    transfer.totalMm = parseFloat(req.body.totalMm) || transfer.totalMm;
+    transfer.quantity = parseFloat(req.body.quantity) || transfer.quantity;
+    transfer.bundleNumber = req.body.bundleNumber || transfer.bundleNumber;
+    transfer.remarks = req.body.remarks || transfer.remarks;
+    transfer.vehicleNumber = req.body.vehicleNumber || transfer.vehicleNumber;
+    transfer.destination = req.body.destination || transfer.destination;
+    transfer.transporter = req.body.transporter || transfer.transporter;
+
+    // Update productPhoto if a new file is uploaded
+    if (req.file) {
+      transfer.productPhoto = req.file.filename;
+    }
 
     const updatedTransfer = await transfer.save();
     res.json(updatedTransfer);

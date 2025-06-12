@@ -6,6 +6,9 @@ const returnSchema = new mongoose.Schema({
     enum: ['cancel', 'return', 'replacement'],
     required: true
   },
+  onlineOrderId: {
+    type: String
+  },
   labelNumber: {
     type: String,
     required: true
@@ -36,8 +39,7 @@ const returnSchema = new mongoose.Schema({
     required: true
   },
   remarks: {
-    type: String,
-    required: true
+    type: String
   },
   createdAt: {
     type: Date,

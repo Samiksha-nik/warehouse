@@ -37,6 +37,9 @@ import StockTransfer from './pages/operations/StockTransfer';
 import Dispatch from './pages/operations/Dispatch';
 import ReturnRefund from './pages/operations/ReturnRefund';
 
+// Reports
+import StockReport from './pages/reports/stockReport';
+
 function App() {
   return (
     <BrowserRouter>
@@ -79,6 +82,9 @@ function App() {
             <Route path="/stock-transfer" element={<StockTransfer />} />
             <Route path="/dispatch" element={<Dispatch />} />
             <Route path="/operations/return-refund" element={<ReturnRefund />} />
+
+            {/* Reports */}
+            <Route path="/reports/stock-report" element={<StockReport />} />
           </Routes>
         </main>
         <ToastContainer position="top-right" autoClose={3000} />

@@ -39,6 +39,8 @@ const dispatchSchema = new mongoose.Schema({
   bundleNumber: { type: String },
   fromLocation: { type: String, required: true },
   toLocation: { type: String, required: true },
+  address: { type: String, required: true },
+  marketplace: { type: String, enum: ['Amazon', 'Flipkart'] },
   products: [
     {
       product: { type: String },

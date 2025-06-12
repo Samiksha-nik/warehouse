@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlusCircle, FaList, FaTimes, FaUndo, FaMoneyBillWave, FaImage } from 'react-icons/fa';
+import { FaPlusCircle, FaList, FaTimes, FaUndo, FaMoneyBillWave, FaImage, FaEdit, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import './ReturnRefund.css';
@@ -32,6 +32,7 @@ const ReturnRefund = () => {
     productPhoto: null,
     remarks: ''
   });
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     fetchReturns();
@@ -84,21 +85,43 @@ const ReturnRefund = () => {
     try {
       setLoading(true);
       const formDataToSend = new FormData();
+      
+      // Add all form fields except the file
       Object.keys(formData).forEach(key => {
-        if (formData[key] !== null && formData[key] !== undefined) {
+        if (key !== 'productPhoto' && formData[key] !== null && formData[key] !== undefined) {
           formDataToSend.append(key, formData[key]);
         }
       });
+
+      // Add the file if it exists
+      if (formData.productPhoto) {
+        formDataToSend.append('productPhoto', formData.productPhoto);
+      }
+
       // Debug log
       for (let pair of formDataToSend.entries()) {
         console.log(pair[0]+ ': ' + pair[1]);
       }
-      await axios.post(`${API_BASE}/api/returns`, formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      toast.success('Return request submitted successfully');
+
+      if (editingId) {
+        // If editing an existing record, send a PATCH request
+        await axios.patch(`${API_BASE}/api/returns/${editingId}`, formDataToSend, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        toast.success('Return request updated successfully!');
+        setEditingId(null); // Clear editing state
+      } else {
+        // If not editing, create a new record, send a POST request
+        await axios.post(`${API_BASE}/api/returns`, formDataToSend, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        toast.success('Return request submitted successfully');
+      }
+
       setFormData({
         type: 'return',
         onlineOrderId: '',
@@ -112,7 +135,8 @@ const ReturnRefund = () => {
       });
       fetchReturns();
     } catch (error) {
-      toast.error('Failed to submit request');
+      console.error('Error submitting return:', error);
+      toast.error(error.response?.data?.message || 'Failed to submit request');
     } finally {
       setLoading(false);
     }
@@ -128,7 +152,7 @@ const ReturnRefund = () => {
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    setFormData({ ...formData, productPhoto: file });
+    setFormData(prev => ({ ...prev, productPhoto: file }));
   };
 
   const handleLabelChange = (e) => {
@@ -146,7 +170,7 @@ const ReturnRefund = () => {
 
   const handleStatusChange = async (id, newStatus) => {
     try {
-      await axios.patch(`${API_BASE}/api/returns/${id}`, { status: newStatus });
+      await axios.patch(`${API_BASE}/api/returns/${id}/status`, { status: newStatus });
       toast.success('Status updated successfully');
       fetchReturns();
     } catch (error) {
@@ -154,51 +178,102 @@ const ReturnRefund = () => {
     }
   };
 
-  // Handler to auto-fill fields based on Online Order ID
   const handleOnlineOrderIdBlur = async (e) => {
     const { value } = e.target;
     if (!value) return;
 
+    // Fetch all returns to check for duplicates
+    const returnsRes = await axios.get(`${API_BASE}/api/returns`);
+    const existingReturn = returnsRes.data.find(r => r.onlineOrderId === value && r._id !== editingId);
+
+    if (existingReturn) {
+      toast.error('This Online Order ID already exists in a return request.');
+      setFormData(prev => ({
+        ...prev,
+        onlineOrderId: '',
+        labelNumber: '',
+        product: '',
+        customerName: '',
+        address: ''
+      }));
+      return; // Stop further processing
+    }
+
     try {
-      const response = await axios.get(`${API_BASE}/api/orders/${value}`);
-      if (response.data) {
+      // Fetch dispatch record by order ID
+      const dispatchRes = await axios.get(`${API_BASE}/api/dispatch?orderId=${value}`);
+      if (dispatchRes.data && dispatchRes.data.length > 0) {
+        const dispatch = dispatchRes.data[0];
         setFormData(prev => ({
           ...prev,
-          customerName: response.data.customerName || '',
-          address: response.data.address || '',
-          product: response.data.product || ''
+          onlineOrderId: value,
+          labelNumber: dispatch.mucNumber || '',
+          product: dispatch.productName || '',
+          customerName: dispatch.customer || '',
+          address: dispatch.address || ''
         }));
+      } else {
+        toast.error('No dispatch found for this Order ID');
       }
     } catch (error) {
-      console.error('Error fetching order details:', error);
+      console.error('Error fetching dispatch details:', error);
+      toast.error('Error fetching dispatch details');
     }
   };
 
-  // Handler to auto-fill fields based on Label Number
   const handleLabelNumberBlur = async (e) => {
     const labelNumber = e.target.value;
     if (!labelNumber) {
       setFormData(prev => ({ ...prev, orderNo: '', invoiceNo: '', address: '' }));
       return;
     }
+
+    // Check if label number already exists in current returns list (for validation)
+    const returnsRes = await axios.get(`${API_BASE}/api/returns`);
+    const existingReturn = returnsRes.data.find(r => r.labelNumber === labelNumber && r._id !== editingId);
+    if (existingReturn) {
+      toast.error('This Label Number already exists in a return request.');
+      setFormData(prev => ({
+        ...prev,
+        labelNumber: '',
+        orderNo: '',
+        invoiceNo: '',
+        address: '',
+        product: '',
+        customerName: '',
+        onlineOrderId: ''
+      }));
+      return; // Stop further processing
+    }
+
     try {
-      // Fetch assignment by label number
-      const assignmentRes = await axios.get(`${API_BASE}/api/assignments?labelNumber=${labelNumber}`);
+      // First check if the label number exists in dispatch records
+      const dispatchRes = await axios.get(`${API_BASE}/api/dispatch?mucNumber=${labelNumber}`);
+      if (!dispatchRes.data || dispatchRes.data.length === 0) {
+        toast.error('This MUC number has not been dispatched. Only dispatched products can be returned.');
+        setFormData(prev => ({
+          ...prev,
+          labelNumber: '',
+          orderNo: '',
+          invoiceNo: '',
+          address: '',
+          product: '',
+          customerName: '',
+          onlineOrderId: ''
+        }));
+        return;
+      }
+
+      // Get customer details from dispatch record
+      const dispatch = dispatchRes.data[0];
       let orderNo = '';
       let invoiceNo = '';
-      let product = '';
-      let customerName = '';
-      let address = '';
+      let product = dispatch.productName || '';
+      let customerName = dispatch.customer || '';
+      let address = dispatch.address || '';
       let status = 'pending';
-      if (assignmentRes.data && assignmentRes.data.length > 0) {
-        const assignment = assignmentRes.data[0];
-        product = assignment.labelDetails?.productName || '';
-        customerName = assignment.customerName || '';
-        address = assignment.address || '';
-        status = assignment.status || 'pending';
-      }
+
       // Always generate next available order/invoice number
-      const returnsRes = await axios.get(`${API_BASE}/api/returns`);
       const allOrderNos = returnsRes.data.map(r => r.orderNo).filter(Boolean);
       const allInvoiceNos = returnsRes.data.map(r => r.invoiceNo).filter(Boolean);
       orderNo = getNextNumber(allOrderNos, 'ORN');
@@ -210,10 +285,43 @@ const ReturnRefund = () => {
         product,
         customerName,
         address,
-        status
+        status,
+        onlineOrderId: dispatch.orderId || ''
       }));
     } catch (error) {
+      toast.error('Error fetching product details. Please try again.');
       setFormData(prev => ({ ...prev, orderNo: '', invoiceNo: '', address: '' }));
+    }
+  };
+
+  const handleEditReturn = (returnRequest) => {
+    setFormData({
+      type: returnRequest.type || 'return',
+      onlineOrderId: returnRequest.onlineOrderId || '',
+      labelNumber: returnRequest.labelNumber || '',
+      returnDate: returnRequest.returnDate ? new Date(returnRequest.returnDate).toISOString().split('T')[0] : '',
+      product: returnRequest.product || '',
+      customerName: returnRequest.customerName || '',
+      address: returnRequest.address || '',
+      productPhoto: null, // File input is always null for editing
+      remarks: returnRequest.remarks || ''
+    });
+    setEditingId(returnRequest._id);
+    setActiveTab('form');
+  };
+
+  const handleDeleteReturn = async (id) => {
+    if (window.confirm('Are you sure you want to delete this return request?')) {
+      try {
+        await axios.delete(`${API_BASE}/api/returns/${id}`);
+        toast.success('Return request deleted successfully!');
+        // Instead of fetchReturns, which refreshes all data, 
+        // you might want to filter the state to remove the deleted item for better UX
+        // For now, let's refetch all to ensure consistency
+        fetchReturns();
+      } catch (err) {
+        toast.error('Error deleting return request: ' + (err.response?.data?.message || err.message));
+      }
     }
   };
 
@@ -327,7 +435,6 @@ const ReturnRefund = () => {
                 name="remarks"
                 value={formData.remarks}
                 onChange={handleInputChange}
-                required
               />
             </div>
 
@@ -382,26 +489,24 @@ const ReturnRefund = () => {
                           value={r.status}
                           onChange={(e) => handleStatusChange(r._id, e.target.value)}
                         >
-                          <option value="pending">Pending</option>
-                          <option value="processing">Processing</option>
-                          <option value="completed">Completed</option>
                           <option value="rejected">Rejected</option>
+                          <option value="cancelled">Cancelled</option>
                         </select>
                       </td>
                       <td>
                         <button 
                           className="btn-icon"
-                          onClick={() => handleStatusChange(r._id, 'approved')}
-                          title="Approve"
+                          onClick={() => handleEditReturn(r)}
+                          title="Edit"
                         >
-                          ✓
+                          <FaEdit />
                         </button>
                         <button 
                           className="btn-icon"
-                          onClick={() => handleStatusChange(r._id, 'rejected')}
-                          title="Reject"
+                          onClick={() => handleDeleteReturn(r._id)}
+                          title="Delete"
                         >
-                          ✕
+                          <FaTrash />
                         </button>
                       </td>
                     </tr>

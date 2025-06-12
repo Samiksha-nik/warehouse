@@ -609,7 +609,7 @@ const StockTransferInward = ({ showForm, showList }) => {
           <thead>
             <tr>
               <th>Date</th>
-              <th>Inward No.</th>
+              <th style={{ whiteSpace: 'nowrap' }}>Inward No.</th>
               <th>MUC Number</th>
               <th>From Location</th>
               <th>To Location</th>
@@ -633,20 +633,20 @@ const StockTransferInward = ({ showForm, showList }) => {
             ) : (
               filteredTransfers.map(transfer => (
                 <tr key={transfer._id}>
-                  <td>{transfer.date ? new Date(transfer.date).toLocaleDateString() : ''}</td>
-                  <td>{transfer.inwardNumber || ''}</td>
-                  <td>{transfer.mucNumber || ''}</td>
-                  <td>{transfer.fromLocation || ''}</td>
-                  <td>{transfer.toLocation || ''}</td>
-                  <td>{transfer.productName || ''}</td>
-                  <td>{transfer.unit || ''}</td>
-                  <td>{transfer.grade || ''}</td>
-                  <td>{transfer.length || ''}</td>
-                  <td>{transfer.width || ''}</td>
-                  <td>{transfer.thickness || ''}</td>
-                  <td>{transfer.totalMm || ''}</td>
-                  <td>{transfer.quantity || ''}</td>
-                  <td>{transfer.bundleNumber || ''}</td>
+                  <td>{new Date(transfer.date).toLocaleDateString()}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{transfer.inwardNumber}</td>
+                  <td>{transfer.mucNumber}</td>
+                  <td>{transfer.fromLocation}</td>
+                  <td>{transfer.toLocation}</td>
+                  <td>{transfer.productName}</td>
+                  <td>{transfer.unit}</td>
+                  <td>{transfer.grade}</td>
+                  <td>{transfer.length}</td>
+                  <td>{transfer.width}</td>
+                  <td>{transfer.thickness}</td>
+                  <td>{transfer.totalMm}</td>
+                  <td>{transfer.quantity}</td>
+                  <td>{transfer.bundleNumber}</td>
                   <td>
                     <button
                       className="btn-icon"

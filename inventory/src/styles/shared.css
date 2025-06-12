@@ -211,15 +211,14 @@ textarea.form-control {
 
 .data-table th,
 .data-table td {
-  padding: 8px 12px; /* Consistent padding for all table cells */
-  border-bottom: 1px solid #ddd; /* Horizontal border */
-  border-right: 1px solid #ddd; /* Vertical border */
+  padding: 10px;
+  border: 1px solid #ddd;
   text-align: left;
 }
 
-.data-table th:last-child,
-.data-table td:last-child {
-  border-right: none; /* Remove right border from the last column */
+/* Specific style for Inward No. column to prevent wrapping */
+.inward-no-column {
+  white-space: nowrap;
 }
 
 .data-table th {

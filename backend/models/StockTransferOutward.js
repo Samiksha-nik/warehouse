@@ -55,24 +55,13 @@ const stockTransferOutwardSchema = new mongoose.Schema({
     type: String,
     required: false
   },
-  orderId: {
-    type: String,
-    required: true,
-    index: true
-  },
   remarks: String,
-  status: {
-    type: String,
-    enum: ['Pending', 'In Transit', 'Delivered', 'Completed', 'Cancelled', 'On Hold'],
-    default: 'Pending'
-  },
   vehicleNumber: { type: String },
   destination: { type: String },
   transporter: { type: String },
   productPhoto: { type: String }
 }, { timestamps: true });
 
-stockTransferOutwardSchema.index({ mucNumber: 1 }, { unique: true });
-stockTransferOutwardSchema.index({ mucNumber: 1, orderId: 1 });
+stockTransferOutwardSchema.index({ mucNumber: 1 });
 
 module.exports = mongoose.model('StockTransferOutward', stockTransferOutwardSchema); 

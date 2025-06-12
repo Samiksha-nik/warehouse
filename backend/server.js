@@ -12,7 +12,7 @@ const port = process.env.PORT || 5000;
 // CORS configuration
 const corsOptions = {
   origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://127.0.0.1:3000'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 };
@@ -64,6 +64,7 @@ const stockTransfersOutwardRouter = require('./routes/stockTransfersOutward');
 const assignmentsRouter = require('./routes/assignments');
 const suppliersRouter = require('./routes/suppliers');
 const qrRoutes = require('./routes/qrRoutes');
+const stockReportRouter = require('./routes/stockReport');
 
 // Use routes with consistent /api prefix
 app.use('/api/countries', countriesRouter);
@@ -90,6 +91,7 @@ app.use('/api/stock-transfers-outward', stockTransfersOutwardRouter);
 app.use('/api/assignments', assignmentsRouter);
 app.use('/api/suppliers', suppliersRouter);
 app.use('/api/qr', qrRoutes);
+app.use('/api/stock-report', stockReportRouter);
 
 // Basic route
 app.get('/', (req, res) => {
