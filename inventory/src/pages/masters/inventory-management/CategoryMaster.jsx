@@ -3,6 +3,8 @@ import axios from 'axios';
 import '../../../styles/shared.css';
 import { FaSave, FaTimes, FaEdit, FaTrash, FaPlusCircle, FaList } from 'react-icons/fa';
 
+const API_URL = 'http://localhost:5000/api';
+
 const CategoryMaster = () => {
   const [activeTab, setActiveTab] = useState('add');
   const [formData, setFormData] = useState({
@@ -24,7 +26,7 @@ const CategoryMaster = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/categories/');
+      const response = await axios.get(`${API_URL}/categories/`);
       setCategories(response.data);
       setError(null);
     } catch (err) {
@@ -59,10 +61,10 @@ const CategoryMaster = () => {
       };
 
       if (editingId) {
-        await axios.post(`http://localhost:5000/categories/update/${editingId}`, categoryData);
+        await axios.post(`${API_URL}/categories/update/${editingId}`, categoryData);
         alert('Category updated successfully!');
       } else {
-        await axios.post('http://localhost:5000/categories/add', categoryData);
+        await axios.post(`${API_URL}/categories/add`, categoryData);
         alert('Category added successfully!');
       }
 
@@ -96,7 +98,7 @@ const CategoryMaster = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this category?')) {
       try {
-        await axios.delete(`http://localhost:5000/categories/delete/${id}`);
+        await axios.delete(`${API_URL}/categories/delete/${id}`);
         alert('Category deleted successfully!');
         fetchCategories();
       } catch (err) {

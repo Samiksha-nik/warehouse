@@ -3,6 +3,8 @@ import axios from 'axios';
 import '../../../../styles/shared.css';
 import { FaSave, FaTimes, FaPlus, FaList, FaEdit, FaTrash } from 'react-icons/fa';
 
+const API_URL = 'http://localhost:5000/api';
+
 const RawMaterialMaster = () => {
   const [activeTab, setActiveTab] = useState('add');
   const [formData, setFormData] = useState({
@@ -49,7 +51,7 @@ const RawMaterialMaster = () => {
   const fetchRawMaterials = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/raw-materials/');
+      const response = await axios.get(`${API_URL}/raw-materials/`);
       setRawMaterials(response.data);
       setError(null);
     } catch (err) {
@@ -61,7 +63,7 @@ const RawMaterialMaster = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/categories/');
+      const response = await axios.get(`${API_URL}/categories/`);
       setCategories(response.data);
     } catch (err) {
       setError('Error fetching categories: ' + err.message);
@@ -70,7 +72,7 @@ const RawMaterialMaster = () => {
 
   const fetchSubCategories = async (categoryId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/subcategories/category/${categoryId}`);
+      const response = await axios.get(`${API_URL}/sub-categories/category/${categoryId}`);
       setSubCategories(response.data);
     } catch (err) {
       setError('Error fetching subcategories: ' + err.message);
@@ -79,7 +81,7 @@ const RawMaterialMaster = () => {
 
   const fetchGrades = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/grades/');
+      const response = await axios.get(`${API_URL}/grades/`);
       setGrades(response.data);
     } catch (err) {
       setError('Error fetching grades: ' + err.message);
@@ -88,7 +90,7 @@ const RawMaterialMaster = () => {
 
   const fetchUnits = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/units/');
+      const response = await axios.get(`${API_URL}/units/`);
       setUnits(response.data);
     } catch (err) {
       setError('Error fetching units: ' + err.message);
@@ -97,7 +99,7 @@ const RawMaterialMaster = () => {
 
   const fetchHsnCodes = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/hsn/');
+      const response = await axios.get(`${API_URL}/hsn/`);
       setHsnCodes(response.data);
     } catch (err) {
       setError('Error fetching HSN codes: ' + err.message);
@@ -135,10 +137,10 @@ const RawMaterialMaster = () => {
       };
 
       if (editingId) {
-        await axios.post(`http://localhost:5000/raw-materials/update/${editingId}`, rawMaterialData);
+        await axios.post(`${API_URL}/raw-materials/update/${editingId}`, rawMaterialData);
         alert('Raw material updated successfully!');
       } else {
-        await axios.post('http://localhost:5000/raw-materials/add', rawMaterialData);
+        await axios.post(`${API_URL}/raw-materials/add`, rawMaterialData);
         alert('Raw material added successfully!');
       }
 
@@ -184,7 +186,7 @@ const RawMaterialMaster = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this raw material?')) {
       try {
-        await axios.delete(`http://localhost:5000/raw-materials/delete/${id}`);
+        await axios.delete(`${API_URL}/raw-materials/delete/${id}`);
         alert('Raw material deleted successfully!');
         fetchRawMaterials();
       } catch (err) {

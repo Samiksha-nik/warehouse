@@ -3,6 +3,8 @@ import '../../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
 
+const API_URL = 'http://localhost:5000/api';
+
 const StateMaster = () => {
   const [activeTab, setActiveTab] = useState('add');
   const [formData, setFormData] = useState({
@@ -20,7 +22,7 @@ const StateMaster = () => {
 
   // Fetch countries for the dropdown
   const fetchCountries = () => {
-    axios.get('http://localhost:5000/countries/')
+    axios.get(`${API_URL}/countries/`)
       .then(response => {
         setCountries(response.data);
       })
@@ -32,7 +34,7 @@ const StateMaster = () => {
   // Fetch states for the list
   const fetchStates = () => {
     setLoading(true);
-    axios.get('http://localhost:5000/states/')
+    axios.get(`${API_URL}/states/`)
       .then(response => {
         setStates(response.data);
         setLoading(false);
@@ -65,50 +67,48 @@ const StateMaster = () => {
   const handleSaveState = (e) => {
     e.preventDefault();
 
-    // Basic client-side validation
+    // Basic validation
     if (!formData.stateName || !formData.stateCode || !formData.country || !formData.status) {
-      alert('Please fill in all required fields (State Name, State Code, Country, Status).');
+      alert('Please fill in all required fields.');
       return;
     }
 
     if (editingId) {
-      // Update existing state
-      axios.post(`http://localhost:5000/states/update/${editingId}`, formData)
+      axios.post(`${API_URL}/states/update/${editingId}`, formData)
         .then(res => {
           console.log(res.data);
-          alert('State updated successfully!'); // Simple notification
-          setEditingId(null); // Exit editing mode
+          alert('State updated successfully!');
+          setEditingId(null);
           setFormData({
             stateName: '',
             stateCode: '',
             country: '',
             remarks: '',
             status: 'active'
-          }); // Clear form
-          setActiveTab('list'); // Switch to list tab
+          });
+          setActiveTab('list');
         })
         .catch(err => {
           console.error('Error updating state:', err);
-          alert('Failed to update state.' + err.message); // Show error notification
+          alert('Failed to update state.' + err.message);
         });
     } else {
-      // Add new state
-      axios.post('http://localhost:5000/states/add', formData)
+      axios.post(`${API_URL}/states/add`, formData)
         .then(res => {
           console.log(res.data);
-          alert('State added successfully!'); // Simple notification
+          alert('State added successfully!');
           setFormData({
             stateName: '',
             stateCode: '',
             country: '',
             remarks: '',
             status: 'active'
-          }); // Clear form
-          setActiveTab('list'); // Switch to list tab
+          });
+          setActiveTab('list');
         })
         .catch(err => {
           console.error('Error saving state:', err);
-          alert('Failed to save state.' + err.message); // Show error notification
+          alert('Failed to save state.' + err.message);
         });
     }
   };
@@ -126,16 +126,16 @@ const StateMaster = () => {
   };
 
   const handleDeleteState = (id) => {
-    if (window.confirm('Are you sure you want to delete this state?')) { // Confirmation dialog
-      axios.delete(`http://localhost:5000/states/delete/${id}`)
+    if (window.confirm('Are you sure you want to delete this state?')) {
+      axios.delete(`${API_URL}/states/delete/${id}`)
         .then(res => {
           console.log(res.data);
-          alert('State deleted successfully!'); // Notification
-          fetchStates(); // Refresh the list after deletion
+          alert('State deleted successfully!');
+          fetchStates();
         })
         .catch(err => {
           console.error('Error deleting state:', err);
-          alert('Failed to delete state.' + err.message); // Error notification
+          alert('Failed to delete state.' + err.message);
         });
     }
   };
@@ -285,7 +285,7 @@ const StateMaster = () => {
                 <tr key={state._id}>
                   <td>{state.stateName}</td>
                   <td>{state.stateCode}</td>
-                  <td>{state.country ? state.country.countryName : 'N/A'}</td> {/* Display country name */}
+                  <td>{state.country?.countryName || 'N/A'}</td>
                   <td>
                     <span className={`status-badge ${state.status}`}>
                       {state.status}

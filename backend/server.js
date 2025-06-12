@@ -5,13 +5,20 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const qrRoutes = require('./routes/qrRoutes');
 
 const app = express();
 const port = process.env.PORT || 5000;
 
+// CORS configuration
+const corsOptions = {
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://127.0.0.1:3000'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -53,51 +60,46 @@ const inventoryRouter = require('./routes/inventory');
 const dispatchRouter = require('./routes/dispatch');
 const returnsRouter = require('./routes/returns');
 const stockTransfersInwardRouter = require('./routes/stockTransfersInward');
+const stockTransfersOutwardRouter = require('./routes/stockTransfersOutward');
+const assignmentsRouter = require('./routes/assignments');
+const suppliersRouter = require('./routes/suppliers');
+const qrRoutes = require('./routes/qrRoutes');
 
-// Use routes
-app.use('/countries', countriesRouter);
-app.use('/states', statesRouter);
-app.use('/cities', citiesRouter);
-app.use('/companies', companiesRouter);
-app.use('/locations', locationsRouter);
-app.use('/addresses', addressesRouter);
-app.use('/customers', customersRouter);
-app.use('/units', unitsRouter);
-app.use('/grades', gradesRouter);
-app.use('/hsn', hsnRouter);
-app.use('/categories', categoriesRouter);
-app.use('/sub-categories', subCategoriesRouter);
-app.use('/products', productsRouter);
-app.use('/products-online', productsOnlineRouter);
-app.use('/raw-materials', rawMaterialsRouter);
-app.use('/labels', labelsRouter);
-app.use('/inventory', inventoryRouter);
+// Use routes with consistent /api prefix
+app.use('/api/countries', countriesRouter);
+app.use('/api/states', statesRouter);
+app.use('/api/cities', citiesRouter);
+app.use('/api/companies', companiesRouter);
+app.use('/api/locations', locationsRouter);
+app.use('/api/addresses', addressesRouter);
+app.use('/api/customers', customersRouter);
+app.use('/api/units', unitsRouter);
+app.use('/api/grades', gradesRouter);
+app.use('/api/hsn', hsnRouter);
+app.use('/api/categories', categoriesRouter);
+app.use('/api/sub-categories', subCategoriesRouter);
+app.use('/api/products', productsRouter);
+app.use('/api/products-online', productsOnlineRouter);
+app.use('/api/raw-materials', rawMaterialsRouter);
+app.use('/api/labels', labelsRouter);
+app.use('/api/inventory', inventoryRouter);
 app.use('/api/dispatch', dispatchRouter);
 app.use('/api/returns', returnsRouter);
 app.use('/api/stock-transfers-inward', stockTransfersInwardRouter);
+app.use('/api/stock-transfers-outward', stockTransfersOutwardRouter);
+app.use('/api/assignments', assignmentsRouter);
+app.use('/api/suppliers', suppliersRouter);
+app.use('/api/qr', qrRoutes);
 
-// Routes
-app.use('/api/labels', labelsRouter);
-app.use('/api/customers', require('./routes/customers'));
-app.use('/api/categories', require('./routes/categories'));
-app.use('/api/subCategories', require('./routes/subCategories'));
-app.use('/api/grades', require('./routes/grades'));
-app.use('/api/units', require('./routes/units'));
-app.use('/api/hsn', require('./routes/hsn'));
-app.use('/api/products', require('./routes/products'));
-app.use('/api/productsonline', require('./routes/productsonline'));
-app.use('/api/rawMaterials', require('./routes/rawMaterials'));
-app.use('/api/assignments', require('./routes/assignments'));
-app.use('/api/suppliers', require('./routes/suppliers'));
-
-// Basic route (you'll add more routes later)
+// Basic route
 app.get('/', (req, res) => {
   res.send('Backend server is running!');
 });
 
+// Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Start the server
 app.listen(port, () => {
-  console.log(Server is running on port: ${port});
+  console.log(`Server is running on port: ${port}`);
 });

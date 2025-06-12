@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaUser, FaSignOutAlt, FaBuilding } from 'react-icons/fa';
+import { FaUser, FaSignInAlt, FaBuilding } from 'react-icons/fa';
 import './Header.css';
 
 const Header = () => {
@@ -15,9 +15,9 @@ const Header = () => {
     setIsCompanyDropdownOpen(false);
   };
 
-  const handleLogout = () => {
-    // Add your logout logic here
-    console.log('Logout clicked');
+  const handleLogin = () => {
+    // Add your login logic here
+    console.log('Login clicked');
   };
 
   return (
@@ -48,10 +48,10 @@ const Header = () => {
             )}
           </div>
 
-          <button className="logout-button" onClick={handleLogout}>
+          <button className="login-button" onClick={handleLogin}>
             <FaUser className="icon" />
-            <span>Logout</span>
-            <FaSignOutAlt className="icon" />
+            <span>Login</span>
+            <FaSignInAlt className="icon" />
           </button>
         </div>
       </div>

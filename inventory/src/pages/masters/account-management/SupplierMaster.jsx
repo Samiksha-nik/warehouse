@@ -3,6 +3,8 @@ import axios from 'axios';
 import '../../../styles/shared.css';
 import { FaSave, FaTimes, FaPlus, FaEdit, FaTrash, FaPlusCircle, FaList } from 'react-icons/fa';
 
+const API_URL = 'http://localhost:5000/api';
+
 const SupplierMaster = () => {
   const [activeTab, setActiveTab] = useState('list');
   const [formData, setFormData] = useState({
@@ -115,7 +117,7 @@ const SupplierMaster = () => {
     try {
       setLoadingCountries(true);
       setError(null);
-      const response = await axios.get('http://localhost:5000/countries');
+      const response = await axios.get(`${API_URL}/countries/`);
       console.log('Countries API Response:', response);
       if (!response.data) {
         console.error('No data received from countries API');
@@ -147,11 +149,7 @@ const SupplierMaster = () => {
         return;
       }
 
-      // Use query parameter instead of path parameter
-      const url = `http://localhost:5000/states?countryId=${countryId}`;
-      console.log('Calling states API:', url);
-
-      const response = await axios.get(url);
+      const response = await axios.get(`${API_URL}/states/country/${countryId}`);
       console.log('Full states API Response:', response);
       console.log('States response data:', response.data);
       console.log('States response status:', response.status);
@@ -226,11 +224,7 @@ const SupplierMaster = () => {
         return;
       }
 
-      // Use query parameter instead of path parameter
-      const url = `http://localhost:5000/cities?stateId=${stateId}`;
-      console.log('Calling cities API:', url);
-
-      const response = await axios.get(url);
+      const response = await axios.get(`${API_URL}/cities/state/${stateId}`);
       console.log('Full cities API Response:', response);
       console.log('Cities response data:', response.data);
       console.log('Cities response status:', response.status);
@@ -296,7 +290,7 @@ const SupplierMaster = () => {
     try {
       setLoadingSuppliers(true);
       setError(null);
-      const response = await axios.get('http://localhost:5000/api/suppliers');
+      const response = await axios.get(`${API_URL}/suppliers/`);
       console.log('Suppliers API Response:', response);
       if (response.data) {
         setSuppliers(response.data);
@@ -402,7 +396,7 @@ const SupplierMaster = () => {
       let response;
       if (editingId) {
         // Update existing supplier
-        response = await axios.put(`http://localhost:5000/api/suppliers/${editingId}`, supplierData, {
+        response = await axios.put(`${API_URL}/suppliers/update/${editingId}`, supplierData, {
           headers: {
             'Content-Type': 'application/json'
           }
@@ -410,7 +404,7 @@ const SupplierMaster = () => {
         alert('Supplier updated successfully!');
       } else {
         // Create new supplier
-        response = await axios.post('http://localhost:5000/api/suppliers', supplierData, {
+        response = await axios.post(`${API_URL}/suppliers/add`, supplierData, {
           headers: {
             'Content-Type': 'application/json'
           }
@@ -483,7 +477,7 @@ const SupplierMaster = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(`http://localhost:5000/api/suppliers/${id}`);
+      const response = await axios.get(`${API_URL}/suppliers/get/${id}`);
       if (response.data) {
         // Map the supplier data to form data
         const supplier = response.data;
@@ -534,7 +528,7 @@ const SupplierMaster = () => {
       try {
         setLoading(true);
         setError(null);
-        await axios.delete(`http://localhost:5000/api/suppliers/${id}`);
+        await axios.delete(`${API_URL}/suppliers/delete/${id}`);
         alert('Supplier deleted successfully!');
         fetchSuppliers(); // Refresh the list
       } catch (err) {

@@ -41,6 +41,25 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get outward transfer by MUC number
+router.get('/muc/:mucNumber', async (req, res) => {
+  try {
+    console.log('Fetching transfer for MUC:', req.params.mucNumber);
+    const transfer = await StockTransferOutward.findOne(
+      { mucNumber: req.params.mucNumber },
+      'mucNumber productName unit grade length width thickness totalMm quantity bundleNumber fromLocation toLocation orderId'
+    ).lean(); // Use lean() for better performance
+    console.log('Found transfer:', transfer);
+    if (!transfer) {
+      return res.status(404).json({ message: 'Transfer not found' });
+    }
+    res.json(transfer);
+  } catch (err) {
+    console.error('Error fetching transfer by MUC:', err);
+    res.status(500).json({ message: 'Error fetching transfer' });
+  }
+});
+
 // Create new outward transfer
 router.post('/', upload.single('productPhoto'), async (req, res) => {
   try {
@@ -59,7 +78,8 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
       'width',
       'thickness',
       'totalMm',
-      'quantity'
+      'quantity',
+      'orderId'
     ];
 
     const missingFields = requiredFields.filter(field => !req.body[field]);
@@ -106,6 +126,7 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
       totalMm: parseFloat(req.body.totalMm),
       quantity: parseFloat(req.body.quantity),
       bundleNumber: req.body.bundleNumber || '',
+      orderId: req.body.orderId,
       remarks: req.body.remarks || '',
       status: req.body.status || 'Pending',
       vehicleNumber: req.body.vehicleNumber || '',

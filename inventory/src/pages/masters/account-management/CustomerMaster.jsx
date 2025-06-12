@@ -4,6 +4,8 @@ import '../../../styles/shared.css';
 import { FaSave, FaTimes, FaPlus, FaEdit, FaTrash, FaPlusCircle, FaList } from 'react-icons/fa';
 // import './CustomerMaster.css'; // Assuming a CSS file might be needed
 
+const API_URL = 'http://localhost:5000/api';
+
 const CustomerMaster = () => {
   const [activeTab, setActiveTab] = useState('add');
   const [formData, setFormData] = useState({
@@ -73,7 +75,7 @@ const CustomerMaster = () => {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/customers/');
+      const response = await axios.get(`${API_URL}/customers/`);
       setCustomers(response.data);
       setError(null);
     } catch (err) {
@@ -86,7 +88,7 @@ const CustomerMaster = () => {
   // Fetch countries
   const fetchCountries = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/countries/');
+      const response = await axios.get(`${API_URL}/countries/`);
       setCountries(response.data);
     } catch (err) {
       setError('Error fetching countries: ' + err.message);
@@ -109,7 +111,7 @@ const CustomerMaster = () => {
   // Fetch states
   const fetchStates = async (countryId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/states/country/${countryId}`);
+      const response = await axios.get(`${API_URL}/states/country/${countryId}`);
       setStates(response.data);
     } catch (err) {
       setError('Error fetching states: ' + err.message);
@@ -132,7 +134,7 @@ const CustomerMaster = () => {
   // Fetch cities
   const fetchCities = async (stateId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/cities/state/${stateId}`);
+      const response = await axios.get(`${API_URL}/cities/state/${stateId}`);
       setCities(response.data);
     } catch (err) {
       setError('Error fetching cities: ' + err.message);
@@ -216,11 +218,11 @@ const CustomerMaster = () => {
         try {
           if (formData.billingAddress._id) {
             // Update existing address
-            const addressResponse = await axios.post(`http://localhost:5000/addresses/update/${formData.billingAddress._id}`, addressData);
+            const addressResponse = await axios.post(`${API_URL}/addresses/update/${formData.billingAddress._id}`, addressData);
             savedAddressId = formData.billingAddress._id; // Use existing ID
           } else {
             // Create new address
-            const addressResponse = await axios.post('http://localhost:5000/addresses/add', addressData);
+            const addressResponse = await axios.post(`${API_URL}/addresses/add`, addressData);
             savedAddressId = addressResponse.data._id; // Get the new address ID from the response
           }
         } catch (addressErr) {
@@ -264,10 +266,10 @@ const CustomerMaster = () => {
       };
 
       if (editingId) {
-        await axios.post(`http://localhost:5000/customers/update/${editingId}`, customerData);
+        await axios.post(`${API_URL}/customers/update/${editingId}`, customerData);
         alert('Customer updated successfully!');
       } else {
-        await axios.post('http://localhost:5000/customers/add', customerData);
+        await axios.post(`${API_URL}/customers/add`, customerData);
         alert('Customer added successfully!');
       }
 
@@ -396,7 +398,7 @@ const CustomerMaster = () => {
            // Note: Deleting associated address is optional based on requirements.
            // The Customer document will still be deleted below.
         }
-        await axios.delete(`http://localhost:5000/customers/delete/${id}`);
+        await axios.delete(`${API_URL}/customers/delete/${id}`);
         alert('Customer deleted successfully!');
         fetchCustomers();
       } catch (err) {

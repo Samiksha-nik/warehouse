@@ -48,18 +48,31 @@ router.get('/:id', async (req, res) => {
 // Create a new dispatch with file upload
 router.post('/', upload.fields([
   { name: 'invoice', maxCount: 1 },
-  { name: 'qrCode', maxCount: 1 }
+  { name: 'productPhoto', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    const invoiceUrl = req.files.invoice ? `/uploads/dispatch/${req.files.invoice[0].filename}` : '';
-    const qrCodeUrl = req.files.qrCode ? `/uploads/dispatch/${req.files.qrCode[0].filename}` : '';
+    const invoiceUrl = req.files && req.files.invoice ? `/uploads/dispatch/${req.files.invoice[0].filename}` : '';
+    const productPhotoUrl = req.files && req.files.productPhoto ? `/uploads/dispatch/${req.files.productPhoto[0].filename}` : '';
 
     const dispatch = new Dispatch({
       dispatchNo: req.body.dispatchNo,
-      dispatchDate: req.body.dispatchDate,
+      dispatchDate: req.body.date,
       customer: req.body.customer,
-      invoiceUrl,
-      qrCode: qrCodeUrl,
+      orderId: req.body.orderId,
+      invoiceUrl: invoiceUrl,
+      qrCode: req.body.qrCode,
+      mucNumber: req.body.mucNumber,
+      productName: req.body.productName,
+      unit: req.body.unit,
+      grade: req.body.grade,
+      length: req.body.length,
+      width: req.body.width,
+      thickness: req.body.thickness,
+      totalMm: req.body.totalMm,
+      quantity: req.body.quantity,
+      bundleNumber: req.body.bundleNumber,
+      fromLocation: req.body.fromLocation,
+      toLocation: req.body.toLocation,
     });
 
     await dispatch.save();

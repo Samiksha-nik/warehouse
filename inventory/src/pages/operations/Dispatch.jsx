@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import '../../styles/shared.css';
 import { FaTrash, FaEdit, FaQrcode } from 'react-icons/fa';
+import { debounce } from 'lodash';
 
 const getCurrentFinancialYear = () => {
   const now = new Date();
@@ -30,7 +31,15 @@ const Dispatch = () => {
     quantity: '',
     bundleNumber: '',
     fromLocation: '',
-    toLocation: ''
+    toLocation: '',
+    date: new Date().toISOString().split('T')[0],
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    customer: '',
+    dispatchNo: '',
+    dispatchDate: '',
+    orderId: '',
+    invoice: null,
+    qrCode: null
   });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -54,7 +63,7 @@ const Dispatch = () => {
 
   const fetchCustomers = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/customers');
+      const response = await axios.get('http://localhost:5000/api/customers');
       setCustomers(response.data);
     } catch (err) {
       setError('Error fetching customers: ' + err.message);
@@ -102,6 +111,53 @@ const Dispatch = () => {
       }
     } catch (err) {
       setFormData(prev => ({ ...prev, customer: '' }));
+    }
+  };
+
+  const fetchAssignmentDetailsByLabelNumber = async (labelNumber) => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/assignments?labelNumber=${labelNumber}`);
+      // Ensure exact match only
+      const assignment = response.data && response.data.find(a => a.labelNumber === labelNumber);
+      if (assignment) {
+        setFormData(prev => ({
+          ...prev,
+          productName: assignment.labelDetails?.productName || '',
+          unit: assignment.labelDetails?.unit || '',
+          grade: assignment.labelDetails?.grade || '',
+          length: assignment.labelDetails?.length || '',
+          width: assignment.labelDetails?.width || '',
+          thickness: assignment.labelDetails?.thickness || '',
+          totalMm: assignment.labelDetails?.totalMm || '',
+          quantity: assignment.labelDetails?.quantity || '',
+          bundleNumber: assignment.labelDetails?.bundleNumber || '',
+          fromLocation: assignment.locationStock || '',
+          customer: assignment.customerName || '',
+        }));
+        setProductValid(true);
+        setMessage('');
+      } else {
+        setProductValid(false);
+        setMessage('No assignment found for this MUC number.');
+        setFormData(prev => ({
+          ...prev,
+          productName: '',
+          unit: '',
+          grade: '',
+          length: '',
+          width: '',
+          thickness: '',
+          totalMm: '',
+          quantity: '',
+          bundleNumber: '',
+          fromLocation: '',
+        }));
+        alert('This MUC number is not assigned in inventory. Please enter a valid MUC number from the assigned inventory list.');
+      }
+    } catch (err) {
+      setProductValid(false);
+      setMessage('Error fetching assignment details.');
+      alert('Error fetching assignment details.');
     }
   };
 
@@ -159,19 +215,25 @@ const Dispatch = () => {
     }
   };
 
-  const handleMucBlur = () => {
-    if (formData.mucNumber) {
-      fetchProductDetails(formData.mucNumber);
-    }
-  };
-
   const fetchProductDetails = async (mucNumber) => {
     try {
-      // Validate against outward assignments
-      const outwardRes = await axios.get(`http://localhost:5000/api/stock-transfers/outward?mucNumber=${mucNumber}`);
-      if (!outwardRes.data || outwardRes.data.length === 0) {
+      if (!mucNumber) return;
+      
+      setMessage('Fetching product details...');
+      console.log('Fetching details for MUC number:', mucNumber);
+
+      // Fetch details from assignments
+      const response = await axios.get(`http://localhost:5000/api/assignments/label/${mucNumber}`);
+      const product = response.data;
+      
+      console.log('Raw API Response:', product);
+      console.log('Label Details:', product?.labelDetails);
+      console.log('Grade from labelDetails:', product?.labelDetails?.grade);
+      console.log('TotalMM from labelDetails:', product?.labelDetails?.totalMM);
+
+      if (!product) {
         setProductValid(false);
-        setMessage('This MUC number is not assigned in Outward.');
+        setMessage('This MUC number is not found in assignments.');
         // Clear product details
         setFormData(prev => ({
           ...prev,
@@ -185,31 +247,41 @@ const Dispatch = () => {
           quantity: '',
           bundleNumber: '',
           fromLocation: '',
-          toLocation: ''
+          toLocation: '',
+          orderId: ''
         }));
         return;
       }
-      const product = outwardRes.data[0];
+
+      // Update form data with details from assignment and its nested labelDetails
       setFormData(prev => ({
         ...prev,
-        productName: product.productName || '',
-        unit: product.unit || '',
-        grade: product.grade || product.gradeValue || '',
-        length: product.length || '',
-        width: product.width || '',
-        thickness: product.thickness || '',
-        totalMm: product.totalMm || '',
-        quantity: product.quantity || '',
-        bundleNumber: product.bundleNumber || '',
-        fromLocation: product.fromLocation || '',
-        toLocation: product.toLocation || ''
+        productName: product.labelDetails?.productName || '',
+        unit: product.labelDetails?.unit || '',
+        grade: product.labelDetails?.grade || '',
+        length: product.labelDetails?.length || '',
+        width: product.labelDetails?.width || '',
+        thickness: product.labelDetails?.thickness || '',
+        totalMm: product.labelDetails?.totalMm || '',
+        quantity: product.labelDetails?.quantity || '',
+        bundleNumber: product.labelDetails?.bundleNumber || '',
+        fromLocation: product.locationStock || '',
+        // toLocation should be manually entered as it's the destination for dispatch
+        orderId: product.orderId || '' 
       }));
+      
       setProductValid(true);
       setMessage('Product details fetched and validated.');
     } catch (err) {
-      setProductValid(false);
-      setMessage('This MUC number is not assigned in Outward.');
-      // Clear product details
+      if (err.response && err.response.status === 404) {
+        setProductValid(false);
+        setMessage('This MUC number is not found in assignments.');
+      } else {
+        console.error('Error fetching product details from assignments:', err);
+        setProductValid(false);
+        setMessage('Error fetching product details. Please try again.');
+      }
+      // Clear product details on error
       setFormData(prev => ({
         ...prev,
         productName: '',
@@ -222,27 +294,52 @@ const Dispatch = () => {
         quantity: '',
         bundleNumber: '',
         fromLocation: '',
-        toLocation: ''
+        toLocation: '',
+        orderId: ''
       }));
+    }
+  };
+
+  // Add debouncing to prevent too many API calls
+  const debouncedFetchProductDetails = useCallback(
+    debounce((mucNumber) => {
+      fetchProductDetails(mucNumber);
+    }, 300),
+    []
+  );
+
+  const handleMucBlur = () => {
+    if (formData.mucNumber) {
+      debouncedFetchProductDetails(formData.mucNumber);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:5000/api/dispatch', {
-        mucNumber: formData.mucNumber,
-        productName: formData.productName,
-        unit: formData.unit,
-        grade: formData.grade,
-        length: formData.length,
-        width: formData.width,
-        thickness: formData.thickness,
-        totalMm: formData.totalMm,
-        quantity: formData.quantity,
-        bundleNumber: formData.bundleNumber,
-        fromLocation: formData.fromLocation,
-        toLocation: formData.toLocation
+      const data = new FormData();
+      data.append('mucNumber', formData.mucNumber);
+      data.append('productName', formData.productName);
+      data.append('unit', formData.unit);
+      data.append('grade', formData.grade);
+      data.append('length', Number(formData.length));
+      data.append('width', Number(formData.width));
+      data.append('thickness', Number(formData.thickness));
+      data.append('totalMm', Number(formData.totalMm));
+      data.append('quantity', Number(formData.quantity));
+      data.append('bundleNumber', formData.bundleNumber);
+      data.append('fromLocation', formData.fromLocation);
+      data.append('toLocation', formData.toLocation);
+      data.append('dispatchNo', formData.dispatchNo);
+      data.append('date', formData.date);
+      data.append('time', formData.time);
+      data.append('customer', formData.customer);
+      data.append('orderId', formData.orderId);
+      if (formData.invoice) data.append('invoice', formData.invoice);
+      if (formData.productPhoto) data.append('productPhoto', formData.productPhoto);
+
+      await axios.post('http://localhost:5000/api/dispatch', data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
 
       setMessage('Dispatch created successfully!');
@@ -258,7 +355,14 @@ const Dispatch = () => {
         quantity: '',
         bundleNumber: '',
         fromLocation: '',
-        toLocation: ''
+        toLocation: '',
+        dispatchNo: '',
+        date: '',
+        time: '',
+        customer: '',
+        orderId: '',
+        invoice: null,
+        productPhoto: null
       });
       fetchDispatches();
     } catch (err) {
@@ -275,34 +379,65 @@ const Dispatch = () => {
         <button className={`tab-button ${activeTab === 'form' ? 'active' : ''}`} onClick={() => { setActiveTab('form'); }}>Create Dispatch</button>
         <button className={`tab-button ${activeTab === 'list' ? 'active' : ''}`} onClick={() => setActiveTab('list')}>Dispatch List</button>
       </div>
-      <div className="page-content">
+      <div className="tab-content">
         {activeTab === 'form' ? (
-          <form onSubmit={handleSubmit} encType="multipart/form-data">
+          <form onSubmit={handleSubmit} className="form-container">
+            <h2>Create Dispatch</h2>
             <div className="form-block">
               <div className="form-row">
                 <div className="form-group">
-                  <label>Dispatch No</label>
-                  <input type="text" name="dispatchNo" value={formData.dispatchNo} readOnly className="form-input" />
+                  <label>MUC Number*</label>
+                  <input
+                    type="text"
+                    name="mucNumber"
+                    value={formData.mucNumber}
+                    onChange={handleInputChange}
+                    onBlur={handleMucBlur}
+                    className="form-input"
+                    required
+                  />
                 </div>
                 <div className="form-group">
-                  <label>Date & Time</label>
-                  <input type="text" value={`${formData.date} ${formData.time}`} readOnly className="form-input" />
+                  <label>Dispatch No*</label>
+                  <input
+                    type="text"
+                    name="dispatchNo"
+                    value={formData.dispatchNo}
+                    readOnly
+                    className="form-input"
+                  />
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>MUC Number*</label>
-                  <input type="text" name="mucNumber" value={formData.mucNumber} onChange={handleInputChange} onBlur={handleMucBlur} required className="form-input" />
+                  <label>Date & Time*</label>
+                  <input
+                    type="text"
+                    value={`${formData.date} ${formData.time}`}
+                    readOnly
+                    className="form-input"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Customer*</label>
+                  <input
+                    type="text"
+                    name="customer"
+                    value={formData.customer}
+                    onChange={handleInputChange}
+                    className="form-input"
+                    required
+                  />
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
                   <label>From Location*</label>
-                  <input type="text" name="fromLocation" value={formData.fromLocation} readOnly className="form-input" />
+                  <input type="text" name="fromLocation" value={formData.fromLocation} onChange={handleInputChange} className="form-input" required />
                 </div>
                 <div className="form-group">
                   <label>To Location*</label>
-                  <input type="text" name="toLocation" value={formData.toLocation} readOnly className="form-input" />
+                  <input type="text" name="toLocation" value={formData.toLocation} onChange={handleInputChange} className="form-input" required />
                 </div>
               </div>
             </div>
@@ -352,6 +487,10 @@ const Dispatch = () => {
                   <label>Bundle Number</label>
                   <input type="text" name="bundleNumber" value={formData.bundleNumber} readOnly className="form-input" />
                 </div>
+                <div className="form-group">
+                  <label>Order ID</label>
+                  <input type="text" name="orderId" value={formData.orderId} readOnly className="form-input" />
+                </div>
               </div>
             </div>
             <div className="form-block">
@@ -367,7 +506,7 @@ const Dispatch = () => {
               </div>
             </div>
             {message && <div className="message error">{message}</div>}
-            <button type="submit" className="btn-primary" disabled={!productValid || !formData.mucNumber || !formData.productName || !formData.unit || !formData.grade || !formData.length || !formData.width || !formData.thickness || !formData.totalMm || !formData.quantity || !formData.bundleNumber || !formData.fromLocation || !formData.toLocation || !formData.invoice || !formData.productPhoto}>Save Dispatch</button>
+            <button type="submit" className="btn-primary" disabled={!productValid || !formData.mucNumber || !formData.productName || !formData.unit || !formData.grade || !formData.length || !formData.width || !formData.thickness || !formData.totalMm || !formData.quantity || !formData.fromLocation || !formData.toLocation || !formData.invoice || !formData.productPhoto || !formData.customer || !formData.orderId}>Save Dispatch</button>
           </form>
         ) : (
           <div className="card">
@@ -379,6 +518,7 @@ const Dispatch = () => {
                     <th>Dispatch No</th>
                     <th>Date</th>
                     <th>Customer</th>
+                    <th>Order ID</th>
                     <th>Invoice</th>
                     <th>Actions</th>
                   </tr>
@@ -386,7 +526,15 @@ const Dispatch = () => {
                 <tbody>
                   {dispatches.map(d => (
                     <tr key={d._id}>
-                      <td>{d.dispatchNo}</td><td>{d.dispatchDate ? new Date(d.dispatchDate).toLocaleDateString() : '-'}</td><td>{d.customer}</td><td>{d.invoiceUrl ? <a href={`http://localhost:5000${d.invoiceUrl}`} target="_blank" rel="noopener noreferrer">View</a> : '-'}</td><td><button className="btn-icon" title="Edit" onClick={() => handleEditDispatch(d)}><FaEdit /></button><button className="btn-icon" title="Delete" onClick={() => handleDeleteDispatch(d._id)}><FaTrash /></button></td>
+                      <td>{d.dispatchNo}</td>
+                      <td>{d.dispatchDate ? new Date(d.dispatchDate).toLocaleDateString() : '-'}</td>
+                      <td>{d.customer}</td>
+                      <td>{d.orderId}</td>
+                      <td>{d.invoiceUrl ? <a href={`http://localhost:5000${d.invoiceUrl}`} target="_blank" rel="noopener noreferrer">View</a> : '-'}</td>
+                      <td>
+                        <button className="btn-icon" title="Edit" onClick={() => handleEditDispatch(d)}><FaEdit /></button>
+                        <button className="btn-icon" title="Delete" onClick={() => handleDeleteDispatch(d._id)}><FaTrash /></button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

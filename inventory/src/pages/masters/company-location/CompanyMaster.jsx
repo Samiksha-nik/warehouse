@@ -34,7 +34,7 @@ const CompanyMaster = () => {
 
   // Fetch countries for dropdown
   const fetchCountries = () => {
-    axios.get('http://localhost:5000/countries/')
+    axios.get('http://localhost:5000/api/countries/')
       .then(response => {
         setCountries(response.data);
       })
@@ -45,7 +45,7 @@ const CompanyMaster = () => {
 
   // Fetch states for dropdown
   const fetchStates = () => {
-    axios.get('http://localhost:5000/states/')
+    axios.get('http://localhost:5000/api/states/')
       .then(response => {
         setStates(response.data);
       })
@@ -56,7 +56,7 @@ const CompanyMaster = () => {
 
   // Fetch cities for dropdown
   const fetchCities = () => {
-    axios.get('http://localhost:5000/cities/')
+    axios.get('http://localhost:5000/api/cities/')
       .then(response => {
         setCities(response.data);
       })
@@ -68,7 +68,7 @@ const CompanyMaster = () => {
   // Fetch companies for list
   const fetchCompanies = () => {
     setLoading(true);
-    axios.get('http://localhost:5000/companies/')
+    axios.get('http://localhost:5000/api/companies/')
       .then(response => {
         setCompanies(response.data);
         setLoading(false);
@@ -111,8 +111,7 @@ const CompanyMaster = () => {
     }
 
     if (editingId) {
-      // Update existing company
-      axios.post(`http://localhost:5000/companies/update/${editingId}`, formData)
+      axios.post(`http://localhost:5000/api/companies/update/${editingId}`, formData)
         .then(res => {
           console.log(res.data);
           alert('Company updated successfully!');
@@ -140,11 +139,10 @@ const CompanyMaster = () => {
         })
         .catch(err => {
           console.error('Error updating company:', err);
-          alert('Failed to update company.\n' + (err.response?.data || err.message));
+          alert('Failed to update company.' + err.message);
         });
     } else {
-      // Add new company
-      axios.post('http://localhost:5000/companies/add', formData)
+      axios.post('http://localhost:5000/api/companies/add', formData)
         .then(res => {
           console.log(res.data);
           alert('Company added successfully!');
@@ -171,7 +169,7 @@ const CompanyMaster = () => {
         })
         .catch(err => {
           console.error('Error saving company:', err);
-          alert('Failed to save company.\n' + (err.response?.data || err.message));
+          alert('Failed to save company.' + err.message);
         });
     }
   };
@@ -202,7 +200,7 @@ const CompanyMaster = () => {
 
   const handleDeleteCompany = (id) => {
     if (window.confirm('Are you sure you want to delete this company?')) {
-      axios.delete(`http://localhost:5000/companies/delete/${id}`)
+      axios.delete(`http://localhost:5000/api/companies/delete/${id}`)
         .then(res => {
           console.log(res.data);
           alert('Company deleted successfully!');
@@ -210,7 +208,7 @@ const CompanyMaster = () => {
         })
         .catch(err => {
           console.error('Error deleting company:', err);
-          alert('Failed to delete company.\n' + (err.response?.data || err.message));
+          alert('Failed to delete company.' + err.message);
         });
     }
   };

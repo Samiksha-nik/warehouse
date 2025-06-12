@@ -18,6 +18,8 @@ const debounce = (func, wait) => {
 
 const StockTransferOutward = ({ showForm, showList }) => {
   const [transfers, setTransfers] = useState([]);
+  const [filteredTransfers, setFilteredTransfers] = useState([]);
+  const [searchMuc, setSearchMuc] = useState('');
   const [message, setMessage] = useState({ text: '', type: '' });
   const [formData, setFormData] = useState({
     mucNumber: '',
@@ -34,6 +36,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
     totalMm: '',
     quantity: '',
     bundleNumber: '',
+    orderId: '',
     remarks: '',
     status: 'Pending',
     type: 'outward',
@@ -81,6 +84,18 @@ const StockTransferOutward = ({ showForm, showList }) => {
 
     calculateTotalMm();
   }, [formData.length, formData.width, formData.thickness]);
+
+  // Add useEffect for filtering
+  useEffect(() => {
+    if (searchMuc) {
+      const filtered = transfers.filter(transfer => 
+        transfer.mucNumber.toLowerCase().includes(searchMuc.toLowerCase())
+      );
+      setFilteredTransfers(filtered);
+    } else {
+      setFilteredTransfers(transfers);
+    }
+  }, [searchMuc, transfers]);
 
   // Fetch product details by MUC number from inward transfers (strict match)
   const fetchInwardDetails = async (mucNumber) => {
@@ -212,11 +227,21 @@ const StockTransferOutward = ({ showForm, showList }) => {
   const fetchTransfers = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/stock-transfers-outward');
-      console.log('Fetched transfers:', response.data); // Debug log
       setTransfers(response.data);
+      setFilteredTransfers(response.data);
     } catch (err) {
-      console.error('Error fetching transfers:', err);
       setMessage({ text: 'Error fetching transfers', type: 'error' });
+    }
+  };
+
+  const handleMucSearch = () => {
+    if (searchMuc) {
+      const filtered = transfers.filter(transfer => 
+        transfer.mucNumber.toLowerCase().includes(searchMuc.toLowerCase())
+      );
+      setFilteredTransfers(filtered);
+    } else {
+      setFilteredTransfers(transfers);
     }
   };
 
@@ -246,6 +271,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
       submitData.append('totalMm', formData.totalMm);
       submitData.append('quantity', formData.quantity);
       submitData.append('bundleNumber', formData.bundleNumber);
+      submitData.append('orderId', formData.orderId);
       submitData.append('remarks', formData.remarks);
       submitData.append('status', formData.status);
       submitData.append('vehicleNumber', formData.vehicleNumber);
@@ -277,6 +303,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
         totalMm: '',
         quantity: '',
         bundleNumber: '',
+        orderId: '',
         remarks: '',
         status: 'Pending',
         type: 'outward',
@@ -354,6 +381,18 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 required
               />
             </div>
+            <div className="form-group">
+              <label>Order ID*</label>
+              <input
+                type="text"
+                name="orderId"
+                value={formData.orderId}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+          </div>
+          <div className="form-row">
             <div className="form-group">
               <label>Date & Time*</label>
               <input
@@ -575,17 +614,24 @@ const StockTransferOutward = ({ showForm, showList }) => {
 
   const renderList = () => (
     <div className="card">
-      <div className="table-header">
-        <div className="table-title">Outward Transfers List</div>
-        <div className="table-actions">
+      <h2>Stock Outward List</h2>
+      
+      {/* Filter row with MUC search */}
+      <div className="filter-row">
+        <div className="search-group">
           <input
             type="text"
-            placeholder="Search transfers..."
-            className="form-control search-input"
-            // onChange={handleSearch} // Optional: implement search logic
+            id="searchMuc"
+            value={searchMuc}
+            onChange={(e) => setSearchMuc(e.target.value)}
+            placeholder="Search MUC number"
+            className="form-control"
+            style={{ minWidth: 180 }}
           />
+          <button onClick={handleMucSearch} className="btn-primary">Search</button>
         </div>
       </div>
+
       <div className="table-container">
         {message.text && (
           <div className={`message ${message.type}`}>{message.text}</div>
@@ -611,12 +657,12 @@ const StockTransferOutward = ({ showForm, showList }) => {
             </tr>
           </thead>
           <tbody>
-            {transfers.length === 0 ? (
+            {filteredTransfers.length === 0 ? (
               <tr>
                 <td colSpan="15" style={{ textAlign: 'center', color: '#888' }}>No transfers found.</td>
               </tr>
             ) : (
-              transfers.map(transfer => {
+              filteredTransfers.map(transfer => {
                 console.log('Rendering transfer:', transfer); // Debug log
                 return (
                   <tr key={transfer._id}>

@@ -3,6 +3,8 @@ import axios from 'axios';
 import '../../../styles/shared.css';
 import { FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
 
+const API_URL = 'http://localhost:5000/api';
+
 const UnitMaster = () => {
   const [activeTab, setActiveTab] = useState('add');
   const [formData, setFormData] = useState({
@@ -23,7 +25,7 @@ const UnitMaster = () => {
   const fetchUnits = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/units/');
+      const response = await axios.get(`${API_URL}/units/`);
       setUnits(response.data);
       setError(null);
     } catch (err) {
@@ -45,10 +47,10 @@ const UnitMaster = () => {
     e.preventDefault();
     try {
       if (editingId) {
-        await axios.post(`http://localhost:5000/units/update/${editingId}`, formData);
+        await axios.post(`${API_URL}/units/update/${editingId}`, formData);
         alert('Unit updated successfully!');
       } else {
-        await axios.post('http://localhost:5000/units/add', formData);
+        await axios.post(`${API_URL}/units/add`, formData);
         alert('Unit added successfully!');
       }
       
@@ -79,7 +81,7 @@ const UnitMaster = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this unit?')) {
       try {
-        await axios.delete(`http://localhost:5000/units/delete/${id}`);
+        await axios.delete(`${API_URL}/units/delete/${id}`);
         alert('Unit deleted successfully!');
         fetchUnits();
       } catch (err) {

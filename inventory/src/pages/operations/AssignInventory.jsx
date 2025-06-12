@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import '../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaQrcode, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
 
+const API_URL = 'http://localhost:5000/api';
+
 const AssignInventory = () => {
   const [activeTab, setActiveTab] = useState('add');
-  const [customers, setCustomers] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -13,7 +14,6 @@ const AssignInventory = () => {
     date: new Date().toISOString().split('T')[0],
     customerName: '',
     orderId: '',
-    locationStock: '',
     labelNumber: '',
     qrCode: '',
     assignTo: '',
@@ -31,30 +31,17 @@ const AssignInventory = () => {
     marketplace: '',
   });
 
-  // Fetch customers and assignments when component mounts
+  const lastCheckedLabel = useRef('');
+
+  // Fetch assignments when component mounts (removed fetchCustomers)
   useEffect(() => {
-    fetchCustomers();
     fetchAssignments();
   }, []);
-
-  const fetchCustomers = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/customers');
-      if (!response.ok) {
-        throw new Error('Failed to fetch customers');
-      }
-      const data = await response.json();
-      setCustomers(data);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-      setError('Error fetching customers: ' + error.message);
-    }
-  };
 
   const fetchAssignments = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/assignments');
+      const response = await axios.get(`${API_URL}/assignments`);
       setAssignments(response.data);
       setError(null);
     } catch (error) {
@@ -84,34 +71,12 @@ const AssignInventory = () => {
   };
 
   const handleLabelNumberChange = async (e) => {
-    const value = e.target.value;
-    setFormData(prevState => ({
-      ...prevState,
-      qrCode: value,
-      labelNumber: value
-    }));
-    // If the value is 4 digits, try to fetch label details
-    if (/^\d{4}$/.test(value)) {
-      try {
-        const response = await fetch(`http://localhost:5000/api/labels/${value}`);
-        if (!response.ok) throw new Error('Label not found');
-        const label = await response.json();
-        setFormData(prevState => ({
-          ...prevState,
-          labelDetails: {
-            productName: label.productName || '',
-            unit: label.unit || '',
-            grade: label.gradeValue || '',
-            length: label.length || '',
-            width: label.width || '',
-            thickness: label.thickness || '',
-            totalMm: label.totalMM || '',
-            quantity: label.quantity || '',
-            bundleNumber: label.bundleNumber || ''
-          }
-        }));
-      } catch (err) {
-        // Optionally clear label details if not found
+    const value = e.target.value.trim();
+
+    // If the value is empty or same as last checked, do nothing
+    if (!value || value === lastCheckedLabel.current) {
+      // Clear labelDetails if MUC is cleared
+      if (!value) {
         setFormData(prevState => ({
           ...prevState,
           labelDetails: {
@@ -124,9 +89,119 @@ const AssignInventory = () => {
             totalMm: '',
             quantity: '',
             bundleNumber: ''
-          }
+          },
+          orderId: '' // Also clear orderId if MUC is cleared
         }));
       }
+      return;
+    }
+
+    setFormData(prevState => ({
+      ...prevState,
+      qrCode: value,
+      labelNumber: value
+    }));
+
+    // Only check if the value is at least 5 characters (or your desired length)
+    if (value.length < 5) return;
+
+    try {
+      // First, fetch the full label details from the labels collection
+      const labelResponse = await axios.get(`${API_URL}/labels?mucNumber=${value}`);
+      const matchingLabel = labelResponse.data[0]; // Assuming API returns an array, take the first match
+
+      if (!matchingLabel) {
+        alert('This MUC number is not found in the Labels list. Please create it first.');
+        lastCheckedLabel.current = value;
+        setFormData(prevState => ({
+          ...prevState,
+          labelNumber: '',
+          qrCode: '',
+          labelDetails: {
+            productName: '',
+            unit: '',
+            grade: '',
+            length: '',
+            width: '',
+            thickness: '',
+            totalMm: '',
+            quantity: '',
+            bundleNumber: ''
+          },
+          orderId: ''
+        }));
+        return;
+      } else {
+        // Reset lastCheckedLabel if a valid value is entered
+        lastCheckedLabel.current = '';
+        // Populate labelDetails from the fetched label data, ensuring correct casing for totalMm
+        setFormData(prevState => ({
+          ...prevState,
+          labelDetails: {
+            productName: matchingLabel.productName || '',
+            unit: matchingLabel.unit || '',
+            grade: matchingLabel.gradeValue || '', // Correctly maps gradeValue from Label to grade in Assignment
+            length: matchingLabel.length || '',
+            width: matchingLabel.width || '',
+            thickness: matchingLabel.thickness || '',
+            totalMm: matchingLabel.totalMM || '', // Corrected: Maps totalMM (from Label) to totalMm (in Assignment)
+            quantity: matchingLabel.quantity || '',
+            bundleNumber: matchingLabel.bundleNumber || ''
+          },
+          // orderId is entered by user, not fetched from labels here
+        }));
+      }
+
+      // After fetching label details, check for duplicates in assignments
+      const checkDuplicateResponse = await axios.get(`${API_URL}/assignments?labelNumber=${value}`);
+      if (checkDuplicateResponse.data && checkDuplicateResponse.data.length > 0) {
+        const isExactMatch = checkDuplicateResponse.data.some(
+          assignment => assignment.labelNumber === value
+        );
+        
+        if (isExactMatch) {
+          alert('This MUC number is already assigned. Please use a different MUC number.');
+          setFormData(prevState => ({
+            ...prevState,
+            labelNumber: '',
+            qrCode: '',
+            labelDetails: {
+              productName: '',
+              unit: '',
+              grade: '',
+              length: '',
+              width: '',
+              thickness: '',
+              totalMm: '',
+              quantity: '',
+              bundleNumber: ''
+            },
+            orderId: ''
+          }));
+          return;
+        }
+      }
+
+    } catch (err) {
+      console.error('Error checking MUC number:', err);
+      alert('Error checking MUC number. Please try again.');
+      setFormData(prevState => ({
+        ...prevState,
+        labelNumber: '',
+        qrCode: '',
+        labelDetails: {
+          productName: '',
+          unit: '',
+          grade: '',
+          length: '',
+          width: '',
+          thickness: '',
+          totalMm: '',
+          quantity: '',
+          bundleNumber: ''
+        },
+        orderId: ''
+      }));
     }
   };
 
@@ -139,7 +214,7 @@ const AssignInventory = () => {
 
         console.log('Uploading QR code file:', file.name);
 
-        const response = await fetch('http://localhost:5000/api/labels/scan', {
+        const response = await fetch(`${API_URL}/labels/scan`, {
           method: 'POST',
           body: formData
         });
@@ -170,131 +245,83 @@ const AssignInventory = () => {
             }
           }));
         } else {
-          throw new Error('Invalid QR code data format');
+          alert('No label details found in QR code');
         }
-      } catch (error) {
-        console.error('Error processing QR code:', error);
-        alert(`Error processing QR code: ${error.message}`);
+      } catch (err) {
+        console.error('Error scanning QR code:', err);
+        alert('Error scanning QR code: ' + err.message);
       }
     }
   };
 
   const handleSaveAssignment = async (e) => {
     e.preventDefault();
+
+    // Basic validation
+    console.log('Validating form data:', formData);
+    console.log('customerName:', formData.customerName);
+    console.log('orderId:', formData.orderId);
+    console.log('labelNumber:', formData.labelNumber);
+    console.log('assignTo:', formData.assignTo);
+    console.log('marketplace:', formData.marketplace);
+
+    if (!formData.customerName || !formData.orderId || !formData.labelNumber || !formData.assignTo || !formData.marketplace) {
+      alert('Please fill all required fields.');
+      return;
+    }
+
+    // Validate labelDetails (ensure product details are fetched)
+    console.log('Validating labelDetails:', formData.labelDetails);
+    if (!formData.labelDetails.productName || !formData.labelDetails.unit || !formData.labelDetails.grade || !formData.labelDetails.length || !formData.labelDetails.width || !formData.labelDetails.thickness || !formData.labelDetails.totalMm || !formData.labelDetails.quantity) {
+      alert('Please ensure product details are fetched by entering a valid MUC number.');
+      return;
+    }
+
     try {
-      // Validate required fields
-      if (!formData.orderId || !formData.date || !formData.customerName || !formData.assignTo || !formData.marketplace) {
-        alert('Please fill in all required fields (Order ID, Date, Customer Name, Assign To, and Marketplace).');
-        return;
-      }
-
-      // Prepare the data for submission
-      const assignmentData = {
-        date: formData.date,
-        customerName: formData.customerName,
-        orderId: formData.orderId.trim(),
-        locationStock: formData.locationStock,
-        labelNumber: formData.labelNumber,
-        qrCode: formData.qrCode,
-        assignTo: formData.assignTo,
-        labelDetails: formData.labelDetails,
-        marketplace: formData.marketplace
-      };
-
-      // Make the API call
-      const response = await axios.post('http://localhost:5000/api/assignments', assignmentData);
-
-      if (response.data) {
-        alert('Inventory assigned successfully!');
-        // Reset form
-        setFormData({
-          date: new Date().toISOString().split('T')[0],
-          customerName: '',
-          orderId: '',
-          locationStock: '',
-          labelNumber: '',
-          qrCode: '',
-          assignTo: '',
-          labelDetails: {
-            productName: '',
-            unit: '',
-            grade: '',
-            length: '',
-            width: '',
-            thickness: '',
-            totalMm: '',
-            quantity: '',
-            bundleNumber: ''
-          },
-          marketplace: ''
-        });
-        // Refresh assignments list
-        fetchAssignments();
-        setActiveTab('list');
-      }
-    } catch (err) {
-      console.error('Error saving assignment:', err);
-      let errorMessage = 'Error saving assignment';
-      
-      if (err.response) {
-        errorMessage = err.response.data?.message || err.response.data || 'Server error occurred';
-      } else if (err.request) {
-        errorMessage = 'No response from server. Please check your connection.';
-      } else {
-        errorMessage = err.message;
-      }
-      
-      alert(errorMessage);
+      setLoading(true);
+      await axios.post(`${API_URL}/assignments`, formData);
+      alert('Assignment created successfully!');
+      // Clear form after successful submission
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        customerName: '',
+        orderId: '',
+        labelNumber: '',
+        qrCode: '',
+        assignTo: '',
+        labelDetails: {
+          productName: '',
+          unit: '',
+          grade: '',
+          length: '',
+          width: '',
+          thickness: '',
+          totalMm: '',
+          quantity: '',
+          bundleNumber: ''
+        },
+        marketplace: ''
+      });
+      fetchAssignments(); // Refresh assignments list
+      setActiveTab('list');
+    } catch (error) {
+      console.error('Error saving assignment:', error);
+      alert('Error saving assignment: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeleteAssignment = async (id) => {
     if (window.confirm('Are you sure you want to delete this assignment?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/assignments/${id}`);
+        await axios.delete(`${API_URL}/assignments/${id}`);
         alert('Assignment deleted successfully!');
         fetchAssignments();
       } catch (error) {
         console.error('Error deleting assignment:', error);
         alert(`Error deleting assignment: ${error.message}`);
       }
-    }
-  };
-
-  // Update the customer selection handler
-  const handleCustomerChange = async (e) => {
-    const selectedCustomerName = e.target.value;
-    setFormData(prev => ({
-      ...prev,
-      customerName: selectedCustomerName
-    }));
-
-    try {
-      // Find the selected customer from the customers list
-      const selectedCustomer = customers.find(c => c.customerName === selectedCustomerName);
-      
-      if (selectedCustomer) {
-        // Update form with customer details
-        setFormData(prev => ({
-          ...prev,
-          customerCode: selectedCustomer.customerCode || '',
-          customerAddress: selectedCustomer.billingAddress ? 
-            `${selectedCustomer.billingAddress.addressLine1 || ''} ${selectedCustomer.billingAddress.addressLine2 || ''} ${selectedCustomer.billingAddress.city || ''} ${selectedCustomer.billingAddress.state || ''} ${selectedCustomer.billingAddress.pincode || ''}` : '',
-          customerPhone: selectedCustomer.phoneNumber || '',
-          customerEmail: selectedCustomer.email || '',
-          customerGstin: selectedCustomer.gstin || '',
-          customerPan: selectedCustomer.pan || '',
-          customerTan: selectedCustomer.tan || '',
-          customerBankName: selectedCustomer.bankName || '',
-          customerBranchName: selectedCustomer.branchName || '',
-          customerAccountNumber: selectedCustomer.accountNumber || '',
-          customerIfscCode: selectedCustomer.ifscCode || '',
-          customerRemarks: selectedCustomer.remarks || ''
-        }));
-      }
-    } catch (err) {
-      console.error('Error fetching customer details:', err);
-      alert('Error fetching customer details. Please try again.');
     }
   };
 
@@ -309,6 +336,31 @@ const AssignInventory = () => {
             <div className="form-container">
               <div className="form-grid">
                 <div className="form-group">
+                  <label htmlFor="date">Date</label>
+                  <input
+                    type="date"
+                    id="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleInputChange}
+                    className="form-control"
+                    readOnly
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="customerName">Assigned From*</label>
+                  <input
+                    type="text"
+                    id="customerName"
+                    name="customerName"
+                    value={formData.customerName}
+                    onChange={handleInputChange}
+                    className="form-control"
+                    placeholder="Enter assigned from"
+                    required
+                  />
+                </div>
+                <div className="form-group">
                   <label htmlFor="orderId">Order ID*</label>
                   <input
                     type="text"
@@ -321,33 +373,6 @@ const AssignInventory = () => {
                     className="form-control"
                   />
                 </div>
-
-                <div className="form-group">
-                  <label htmlFor="date">Date*</label>
-                  <input
-                    type="text"
-                    id="date"
-                    name="date"
-                    value={formData.date}
-                    readOnly
-                    className="form-control"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="customerName">Customer Name*</label>
-                  <input
-                    type="text"
-                    id="customerName"
-                    name="customerName"
-                    value={formData.customerName}
-                    onChange={handleInputChange}
-                    placeholder="Enter customer name"
-                    required
-                    className="form-control"
-                  />
-                </div>
-
                 <div className="form-group">
                   <label htmlFor="assignTo">Assign To*</label>
                   <input
@@ -391,17 +416,19 @@ const AssignInventory = () => {
             <div className="form-container">
               <div className="form-grid">
                 <div className="form-group">
-                  <label htmlFor="qrCode">QR Code / Label Number*</label>
+                  <label htmlFor="labelNumber">MUC Number / QR Code*</label>
                   <div className="qr-code-upload">
                     <input
                       type="text"
-                      id="qrCode"
-                      name="qrCode"
-                      value={formData.qrCode}
+                      id="labelNumber"
+                      name="labelNumber"
+                      value={formData.labelNumber}
                       onChange={handleLabelNumberChange}
-                      placeholder="Enter QR code or upload image"
+                      placeholder="Enter MUC or Scan QR"
                       required
                       className="form-control"
+                      maxLength={20}
+                      onBlur={handleLabelNumberChange}
                     />
                     <input
                       type="file"
@@ -422,7 +449,7 @@ const AssignInventory = () => {
                     type="text"
                     value={formData.labelDetails.productName}
                     className="form-control"
-                    disabled
+                    readOnly
                   />
                 </div>
 
@@ -432,7 +459,7 @@ const AssignInventory = () => {
                     type="text"
                     value={formData.labelDetails.unit}
                     className="form-control"
-                    disabled
+                    readOnly
                   />
                 </div>
 
@@ -442,7 +469,7 @@ const AssignInventory = () => {
                     type="text"
                     value={formData.labelDetails.grade}
                     className="form-control"
-                    disabled
+                    readOnly
                   />
                 </div>
 
@@ -452,7 +479,7 @@ const AssignInventory = () => {
                     type="text"
                     value={formData.labelDetails.length}
                     className="form-control"
-                    disabled
+                    readOnly
                   />
                 </div>
 
@@ -462,7 +489,7 @@ const AssignInventory = () => {
                     type="text"
                     value={formData.labelDetails.width}
                     className="form-control"
-                    disabled
+                    readOnly
                   />
                 </div>
 
@@ -472,7 +499,7 @@ const AssignInventory = () => {
                     type="text"
                     value={formData.labelDetails.thickness}
                     className="form-control"
-                    disabled
+                    readOnly
                   />
                 </div>
 
@@ -482,7 +509,7 @@ const AssignInventory = () => {
                     type="text"
                     value={formData.labelDetails.totalMm}
                     className="form-control"
-                    disabled
+                    readOnly
                   />
                 </div>
 
@@ -492,7 +519,7 @@ const AssignInventory = () => {
                     type="text"
                     value={formData.labelDetails.quantity}
                     className="form-control"
-                    disabled
+                    readOnly
                   />
                 </div>
 
@@ -502,7 +529,7 @@ const AssignInventory = () => {
                     type="text"
                     value={formData.labelDetails.bundleNumber}
                     className="form-control"
-                    disabled
+                    readOnly
                   />
                 </div>
               </div>
@@ -511,9 +538,8 @@ const AssignInventory = () => {
         </div>
 
         <div className="form-actions">
-          <button type="submit" className="btn-primary">
-            <FaSave className="btn-icon" /> Save Assignment
-          </button>
+          <button type="submit" className="btn btn-primary"><FaSave /> Save Assignment</button>
+          <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('list')}><FaTimes /> Cancel</button>
         </div>
       </form>
     </div>
@@ -521,65 +547,69 @@ const AssignInventory = () => {
 
   const renderList = () => (
     <div className="card">
-      <div className="table-header">
-        <div className="table-title">Assignments List</div>
-        <div className="table-actions">
-          <input
-            type="text"
-            placeholder="Search assignments..."
-            className="form-control search-input"
-          />
-        </div>
-      </div>
-      <div className="table-container">
-        {loading ? (
-          <p>Loading...</p>
-        ) : error ? (
-          <p className="error">{error}</p>
-        ) : assignments.length > 0 ? (
+      <h2>Assigned Inventory List</h2>
+      {loading ? (
+        <p>Loading assignments...</p>
+      ) : error ? (
+        <p className="error-message">{error}</p>
+      ) : (
+        <div className="table-container">
           <table className="data-table">
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Customer Name</th>
+                <th>MUC Number</th>
+                <th>Assigned From</th>
                 <th>Order ID</th>
-                <th>Label Number</th>
-                <th>QR Code</th>
-                <th>Assign To</th>
+                <th>Product Name</th>
+                <th>Unit</th>
+                <th>Grade</th>
+                <th>Length</th>
+                <th>Width</th>
+                <th>Thickness</th>
+                <th>Total MM</th>
+                <th>Quantity</th>
+                <th>Bundle Number</th>
+                <th>Assigned To</th>
                 <th>Marketplace</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {assignments.map(assignment => (
-                <tr key={assignment._id}>
-                  <td>{new Date(assignment.date).toLocaleDateString()}</td>
-                  <td>{assignment.customerName}</td>
-                  <td>{assignment.orderId}</td>
-                  <td>{assignment.labelNumber}</td>
-                  <td>{assignment.qrCode}</td>
-                  <td>{assignment.assignTo}</td>
-                  <td>
-                    <span className={`marketplace-badge ${assignment.marketplace?.toLowerCase()}`}>
-                      {assignment.marketplace}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      className="btn-icon"
-                      onClick={() => handleDeleteAssignment(assignment._id)}
-                    >
-                      <FaTrash />
-                    </button>
-                  </td>
+              {assignments.length === 0 ? (
+                <tr>
+                  <td colSpan="16" style={{ textAlign: 'center' }}>No assignments found.</td>
                 </tr>
-              ))}
+              ) : (
+                assignments.map(assignment => (
+                  <tr key={assignment._id}>
+                    <td>{assignment.date ? new Date(assignment.date).toLocaleDateString() : ''}</td>
+                    <td>{assignment.labelNumber}</td>
+                    <td>{assignment.customerName}</td>
+                    <td>{assignment.orderId}</td>
+                    <td>{assignment.labelDetails?.productName || '-'}</td>
+                    <td>{assignment.labelDetails?.unit || '-'}</td>
+                    <td>{assignment.labelDetails?.grade || '-'}</td>
+                    <td>{assignment.labelDetails?.length || '-'}</td>
+                    <td>{assignment.labelDetails?.width || '-'}</td>
+                    <td>{assignment.labelDetails?.thickness || '-'}</td>
+                    <td>{assignment.labelDetails?.totalMm || '-'}</td>
+                    <td>{assignment.labelDetails?.quantity || '-'}</td>
+                    <td>{assignment.labelDetails?.bundleNumber || '-'}</td>
+                    <td>{assignment.assignTo}</td>
+                    <td>{assignment.marketplace}</td>
+                    <td>
+                      <button onClick={() => handleDeleteAssignment(assignment._id)} className="btn-icon">
+                        <FaTrash />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
-        ) : (
-          <p className="text-center">No assignments found</p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 

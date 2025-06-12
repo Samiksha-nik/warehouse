@@ -14,6 +14,8 @@ const generateInwardNumber = (lastNumber = 0) => {
 
 const StockTransferInward = ({ showForm, showList }) => {
   const [transfers, setTransfers] = useState([]);
+  const [filteredTransfers, setFilteredTransfers] = useState([]);
+  const [searchMuc, setSearchMuc] = useState('');
   const [message, setMessage] = useState({ text: '', type: '' });
   const [formData, setFormData] = useState({
     mucNumber: '',
@@ -186,10 +188,23 @@ const StockTransferInward = ({ showForm, showList }) => {
     }
   }, [showList]);
 
+  // Add useEffect for filtering
+  useEffect(() => {
+    if (searchMuc) {
+      const filtered = transfers.filter(transfer => 
+        transfer.mucNumber.toLowerCase().includes(searchMuc.toLowerCase())
+      );
+      setFilteredTransfers(filtered);
+    } else {
+      setFilteredTransfers(transfers);
+    }
+  }, [searchMuc, transfers]);
+
   const fetchTransfers = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/stock-transfers-inward');
       setTransfers(response.data);
+      setFilteredTransfers(response.data);
     } catch (err) {
       setMessage({ text: 'Error fetching transfers', type: 'error' });
     }
@@ -568,16 +583,24 @@ const StockTransferInward = ({ showForm, showList }) => {
 
   const renderList = () => (
     <div className="card">
-      <div className="table-header">
-        <div className="table-title">Inward Transfers List</div>
-        <div className="table-actions">
+      <h2>Stock Inward List</h2>
+      
+      {/* Filter row with MUC search */}
+      <div className="filter-row">
+        <div className="search-group">
           <input
             type="text"
-            placeholder="Search transfers..."
-            className="form-control search-input"
+            id="searchMuc"
+            value={searchMuc}
+            onChange={(e) => setSearchMuc(e.target.value)}
+            placeholder="Search MUC number"
+            className="form-control"
+            style={{ minWidth: 180 }}
           />
+          <button onClick={handleMucSearch} className="btn-primary">Search</button>
         </div>
       </div>
+
       <div className="table-container">
         {message.text && (
           <div className={`message ${message.type}`}>{message.text}</div>
@@ -586,8 +609,8 @@ const StockTransferInward = ({ showForm, showList }) => {
           <thead>
             <tr>
               <th>Date</th>
+              <th>Inward No.</th>
               <th>MUC Number</th>
-              <th>Inward Number</th>
               <th>From Location</th>
               <th>To Location</th>
               <th>Product Name</th>
@@ -603,16 +626,16 @@ const StockTransferInward = ({ showForm, showList }) => {
             </tr>
           </thead>
           <tbody>
-            {transfers.length === 0 ? (
+            {filteredTransfers.length === 0 ? (
               <tr>
                 <td colSpan="15" style={{ textAlign: 'center', color: '#888' }}>No transfers found.</td>
               </tr>
             ) : (
-              transfers.map(transfer => (
+              filteredTransfers.map(transfer => (
                 <tr key={transfer._id}>
                   <td>{transfer.date ? new Date(transfer.date).toLocaleDateString() : ''}</td>
-                  <td>{transfer.mucNumber || ''}</td>
                   <td>{transfer.inwardNumber || ''}</td>
+                  <td>{transfer.mucNumber || ''}</td>
                   <td>{transfer.fromLocation || ''}</td>
                   <td>{transfer.toLocation || ''}</td>
                   <td>{transfer.productName || ''}</td>
@@ -640,6 +663,17 @@ const StockTransferInward = ({ showForm, showList }) => {
       </div>
     </div>
   );
+
+  const handleMucSearch = () => {
+    if (searchMuc) {
+      const filtered = transfers.filter(transfer => 
+        transfer.mucNumber.toLowerCase().includes(searchMuc.toLowerCase())
+      );
+      setFilteredTransfers(filtered);
+    } else {
+      setFilteredTransfers(transfers);
+    }
+  };
 
   return (
     <div className="container">

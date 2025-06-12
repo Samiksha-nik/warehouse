@@ -3,6 +3,8 @@ import '../../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
 
+const API_URL = 'http://localhost:5000/api';
+
 const CountryMaster = () => {
   const [activeTab, setActiveTab] = useState('list');
   const [formData, setFormData] = useState({
@@ -18,7 +20,7 @@ const CountryMaster = () => {
 
   const fetchCountries = () => {
     setLoading(true);
-    axios.get('http://localhost:5000/countries/') // Replace with your backend URL if different
+    axios.get(`${API_URL}/countries/`)
       .then(response => {
         setCountries(response.data);
         setLoading(false);
@@ -58,7 +60,7 @@ const CountryMaster = () => {
     }
 
     if (editingId) {
-      axios.post(`http://localhost:5000/countries/update/${editingId}`, formData)
+      axios.post(`${API_URL}/countries/update/${editingId}`, formData)
         .then(res => {
           console.log(res.data);
           alert('Country updated successfully!');
@@ -76,7 +78,7 @@ const CountryMaster = () => {
           alert('Failed to update country.' + err.message);
         });
     } else {
-      axios.post('http://localhost:5000/countries/add', formData)
+      axios.post(`${API_URL}/countries/add`, formData)
         .then(res => {
           console.log(res.data);
           alert('Country added successfully!');
@@ -108,7 +110,7 @@ const CountryMaster = () => {
 
   const handleDeleteCountry = (id) => {
     if (window.confirm('Are you sure you want to delete this country?')) {
-      axios.delete(`http://localhost:5000/countries/delete/${id}`)
+      axios.delete(`${API_URL}/countries/delete/${id}`)
         .then(res => {
           console.log(res.data);
           alert('Country deleted successfully!');

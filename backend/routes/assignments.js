@@ -13,6 +13,20 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get a single assignment by labelNumber (MUC Number)
+router.get('/label/:labelNumber', async (req, res) => {
+  try {
+    const assignment = await Assignment.findOne({ labelNumber: req.params.labelNumber });
+    if (!assignment) {
+      return res.status(404).json({ message: 'Assignment not found' });
+    }
+    res.json(assignment);
+  } catch (err) {
+    console.error('Error fetching assignment by label number:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Add a new assignment
 router.post('/', async (req, res) => {
   try {

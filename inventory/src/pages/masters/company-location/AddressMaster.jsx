@@ -4,6 +4,8 @@ import '../../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
 // import './AddressMaster.css'; // Assuming a CSS file might be needed
 
+const API_URL = 'http://localhost:5000/api';
+
 const AddressMaster = () => {
   const [activeTab, setActiveTab] = useState('add');
   const [formData, setFormData] = useState({
@@ -39,7 +41,7 @@ const AddressMaster = () => {
   const fetchAddresses = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/addresses/');
+      const response = await axios.get(`${API_URL}/addresses/`);
       setAddresses(response.data);
       setError(null);
     } catch (err) {
@@ -52,7 +54,7 @@ const AddressMaster = () => {
   // Fetch countries
   const fetchCountries = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/countries/');
+      const response = await axios.get(`${API_URL}/countries/`);
       setCountries(response.data);
     } catch (err) {
       setError('Error fetching countries: ' + err.message);
@@ -69,7 +71,7 @@ const AddressMaster = () => {
   // Fetch states
   const fetchStates = async (countryId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/states/country/${countryId}`);
+      const response = await axios.get(`${API_URL}/states/country/${countryId}`);
       setStates(response.data);
     } catch (err) {
       setError('Error fetching states: ' + err.message);
@@ -88,7 +90,7 @@ const AddressMaster = () => {
   // Fetch cities
   const fetchCities = async (stateId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/cities/state/${stateId}`);
+      const response = await axios.get(`${API_URL}/cities/state/${stateId}`);
       setCities(response.data);
     } catch (err) {
       setError('Error fetching cities: ' + err.message);
@@ -103,35 +105,66 @@ const AddressMaster = () => {
     }));
   };
 
-  const handleSaveAddress = async (e) => {
+  const handleSaveAddress = (e) => {
     e.preventDefault();
-    try {
-      if (editingId) {
-        await axios.post(`http://localhost:5000/addresses/update/${editingId}`, formData);
-        alert('Address updated successfully!');
-      } else {
-        await axios.post('http://localhost:5000/addresses/add', formData);
-        alert('Address added successfully!');
-      }
-      fetchAddresses();
-      setFormData({
-        addressLine1: '',
-        addressLine2: '',
-        country: '',
-        state: '',
-        city: '',
-        pincode: '',
-        telephone: '',
-        mobile: '',
-        fax: '',
-        email: '',
-        remarks: '',
-        status: 'active'
-      });
-      setEditingId(null);
-      setActiveTab('list'); // Switch to list view after saving
-    } catch (err) {
-      alert('Error: ' + err.message);
+
+    // Basic validation
+    if (!formData.addressLine1 || !formData.country || !formData.state || !formData.city) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+
+    if (editingId) {
+      axios.post(`${API_URL}/addresses/update/${editingId}`, formData)
+        .then(res => {
+          console.log(res.data);
+          alert('Address updated successfully!');
+          setEditingId(null);
+          setFormData({
+            addressLine1: '',
+            addressLine2: '',
+            country: '',
+            state: '',
+            city: '',
+            pincode: '',
+            telephone: '',
+            mobile: '',
+            fax: '',
+            email: '',
+            remarks: '',
+            status: 'active'
+          });
+          setActiveTab('list');
+        })
+        .catch(err => {
+          console.error('Error updating address:', err);
+          alert('Failed to update address.' + err.message);
+        });
+    } else {
+      axios.post(`${API_URL}/addresses/add`, formData)
+        .then(res => {
+          console.log(res.data);
+          alert('Address added successfully!');
+          setFormData({
+            addressLine1: '',
+            addressLine2: '',
+            country: '',
+            state: '',
+            city: '',
+            pincode: '',
+            telephone: '',
+            mobile: '',
+            fax: '',
+            email: '',
+            remarks: '',
+            status: 'active'
+          });
+          setActiveTab('list');
+        })
+        .catch(err => {
+          console.error('Error saving address:', err);
+          alert('Failed to save address.' + err.message);
+        });
     }
   };
 
@@ -154,15 +187,18 @@ const AddressMaster = () => {
     setActiveTab('add'); // Switch to the Add New tab for editing
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteAddress = (id) => {
     if (window.confirm('Are you sure you want to delete this address?')) {
-      try {
-        await axios.delete(`http://localhost:5000/addresses/delete/${id}`);
-        alert('Address deleted successfully!');
-        fetchAddresses();
-      } catch (err) {
-        alert('Error: ' + err.message);
-      }
+      axios.delete(`${API_URL}/addresses/delete/${id}`)
+        .then(res => {
+          console.log(res.data);
+          alert('Address deleted successfully!');
+          fetchAddresses();
+        })
+        .catch(err => {
+          console.error('Error deleting address:', err);
+          alert('Failed to delete address.' + err.message);
+        });
     }
   };
 
@@ -413,7 +449,7 @@ const AddressMaster = () => {
                       </button>
                       <button
                         className="btn-icon"
-                        onClick={() => handleDelete(address._id)}
+                        onClick={() => handleDeleteAddress(address._id)}
                       >
                         <FaTrash />
                       </button>

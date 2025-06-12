@@ -3,6 +3,8 @@ import '../../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
 
+const API_URL = 'http://localhost:5000/api';
+
 const CityMaster = () => {
   const [activeTab, setActiveTab] = useState('add');
   const [formData, setFormData] = useState({
@@ -22,7 +24,7 @@ const CityMaster = () => {
 
   // Fetch countries for the dropdown
   const fetchCountries = () => {
-    axios.get('http://localhost:5000/countries/')
+    axios.get(`${API_URL}/countries/`)
       .then(response => {
         setCountries(response.data);
       })
@@ -33,7 +35,7 @@ const CityMaster = () => {
 
   // Fetch states for the dropdown (initially, or based on selected country if needed later)
    const fetchStates = () => {
-    axios.get('http://localhost:5000/states/')
+    axios.get(`${API_URL}/states/`)
       .then(response => {
         setStates(response.data);
       })
@@ -45,7 +47,7 @@ const CityMaster = () => {
   // Fetch cities for the list
   const fetchCities = () => {
     setLoading(true);
-    axios.get('http://localhost:5000/cities/')
+    axios.get(`${API_URL}/cities/`)
       .then(response => {
         setCities(response.data);
         setLoading(false);
@@ -86,12 +88,11 @@ const CityMaster = () => {
     }
 
     if (editingId) {
-      // Update existing city
-      axios.post(`http://localhost:5000/cities/update/${editingId}`, formData)
+      axios.post(`${API_URL}/cities/update/${editingId}`, formData)
         .then(res => {
           console.log(res.data);
-          alert('City updated successfully!'); // Simple notification
-          setEditingId(null); // Exit editing mode
+          alert('City updated successfully!');
+          setEditingId(null);
           setFormData({
             cityName: '',
             cityCode: '',
@@ -99,19 +100,18 @@ const CityMaster = () => {
             country: '',
             remarks: '',
             status: 'active'
-          }); // Clear form
-          setActiveTab('list'); // Switch to list tab
+          });
+          setActiveTab('list');
         })
         .catch(err => {
           console.error('Error updating city:', err);
-          alert('Failed to update city.\n' + (err.response?.data || err.message)); // Show error notification
+          alert('Failed to update city.' + err.message);
         });
     } else {
-      // Add new city
-      axios.post('http://localhost:5000/cities/add', formData)
+      axios.post(`${API_URL}/cities/add`, formData)
         .then(res => {
           console.log(res.data);
-          alert('City added successfully!'); // Simple notification
+          alert('City added successfully!');
           setFormData({
             cityName: '',
             cityCode: '',
@@ -119,12 +119,12 @@ const CityMaster = () => {
             country: '',
             remarks: '',
             status: 'active'
-          }); // Clear form
-          setActiveTab('list'); // Switch to list tab
+          });
+          setActiveTab('list');
         })
         .catch(err => {
-          console.error('Error saving city:\n', err.response?.data || err.message);
-          alert('Failed to save city.\n' + (err.response?.data || err.message)); // Show error notification
+          console.error('Error saving city:', err);
+          alert('Failed to save city.' + err.message);
         });
     }
   };
@@ -144,16 +144,16 @@ const CityMaster = () => {
   };
 
   const handleDeleteCity = (id) => {
-    if (window.confirm('Are you sure you want to delete this city?')) { // Confirmation dialog
-      axios.delete(`http://localhost:5000/cities/delete/${id}`)
+    if (window.confirm('Are you sure you want to delete this city?')) {
+      axios.delete(`${API_URL}/cities/delete/${id}`)
         .then(res => {
           console.log(res.data);
-          alert('City deleted successfully!'); // Notification
-          fetchCities(); // Refresh the list after deletion
+          alert('City deleted successfully!');
+          fetchCities();
         })
         .catch(err => {
-          console.error('Error deleting city:\n', err.response?.data || err.message);
-          alert('Failed to delete city.\n' + (err.response?.data || err.message)); // Error notification
+          console.error('Error deleting city:', err);
+          alert('Failed to delete city.' + err.message);
         });
     }
   };

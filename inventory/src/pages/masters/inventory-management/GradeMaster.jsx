@@ -3,6 +3,8 @@ import axios from 'axios';
 import '../../../styles/shared.css';
 import { FaSave, FaTimes, FaEdit, FaTrash, FaPlusCircle, FaList } from 'react-icons/fa';
 
+const API_URL = 'http://localhost:5000/api';
+
 const GradeMaster = () => {
   const [activeTab, setActiveTab] = useState('add');
   const [formData, setFormData] = useState({
@@ -24,7 +26,7 @@ const GradeMaster = () => {
   const fetchGrades = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/grades/');
+      const response = await axios.get(`${API_URL}/grades/`);
       setGrades(response.data);
       setError(null);
     } catch (err) {
@@ -59,10 +61,10 @@ const GradeMaster = () => {
       };
 
       if (editingId) {
-        await axios.post(`http://localhost:5000/grades/update/${editingId}`, gradeData);
+        await axios.post(`${API_URL}/grades/update/${editingId}`, gradeData);
         alert('Grade updated successfully!');
       } else {
-        await axios.post('http://localhost:5000/grades/add', gradeData);
+        await axios.post(`${API_URL}/grades/add`, gradeData);
         alert('Grade added successfully!');
       }
 
@@ -96,7 +98,7 @@ const GradeMaster = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this grade?')) {
       try {
-        await axios.delete(`http://localhost:5000/grades/delete/${id}`);
+        await axios.delete(`${API_URL}/grades/delete/${id}`);
         alert('Grade deleted successfully!');
         fetchGrades();
       } catch (err) {

@@ -6,18 +6,6 @@ const returnSchema = new mongoose.Schema({
     enum: ['cancel', 'return', 'replacement'],
     required: true
   },
-  onlineOrderId: {
-    type: String,
-    required: true
-  },
-  orderNo: {
-    type: String,
-    required: true
-  },
-  invoiceNo: {
-    type: String,
-    required: true
-  },
   labelNumber: {
     type: String,
     required: true
@@ -63,7 +51,7 @@ const returnSchema = new mongoose.Schema({
 
 // Update the updatedAt timestamp before saving
 returnSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
+  this.updatedAt = new Date();
   next();
 });
 

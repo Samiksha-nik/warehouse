@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import '../../../../styles/shared.css'; // Corrected path
+import '../../../../styles/shared.css';
 import { FaUpload, FaPlus, FaSave, FaLeaf, FaTimes, FaList, FaPlusCircle, FaEdit, FaTrash } from 'react-icons/fa';
+
+const API_URL = 'http://localhost:5000/api';
 
 const ProductMaster = () => {
   const [activeTab, setActiveTab] = useState('add');
@@ -33,8 +35,7 @@ const ProductMaster = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      // Fetch products and populate category and hsnCode
-      const response = await axios.get('http://localhost:5000/products/');
+      const response = await axios.get(`${API_URL}/products/`);
       setProducts(response.data);
       setError(null);
     } catch (err) {
@@ -46,7 +47,7 @@ const ProductMaster = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/categories/');
+      const response = await axios.get(`${API_URL}/categories/`);
       setCategories(response.data);
     } catch (err) {
       setError('Error fetching categories: ' + err.message);
@@ -55,7 +56,7 @@ const ProductMaster = () => {
 
   const fetchHsnCodes = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/hsn/');
+      const response = await axios.get(`${API_URL}/hsn/`);
       setHsnCodes(response.data);
     } catch (err) {
       setError('Error fetching HSN codes: ' + err.message);
@@ -116,10 +117,10 @@ const ProductMaster = () => {
       };
 
       if (editingId) {
-        await axios.post(`http://localhost:5000/products/update/${editingId}`, productData);
+        await axios.post(`${API_URL}/products/update/${editingId}`, productData);
         alert('Product updated successfully!');
       } else {
-        await axios.post('http://localhost:5000/products/add', productData);
+        await axios.post(`${API_URL}/products/add`, productData);
         alert('Product added successfully!');
       }
 
@@ -157,7 +158,7 @@ const ProductMaster = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        await axios.delete(`http://localhost:5000/products/delete/${id}`);
+        await axios.delete(`${API_URL}/products/delete/${id}`);
         alert('Product deleted successfully!');
         fetchProducts();
       } catch (err) {

@@ -55,6 +55,11 @@ const stockTransferOutwardSchema = new mongoose.Schema({
     type: String,
     required: false
   },
+  orderId: {
+    type: String,
+    required: true,
+    index: true
+  },
   remarks: String,
   status: {
     type: String,
@@ -68,5 +73,6 @@ const stockTransferOutwardSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 stockTransferOutwardSchema.index({ mucNumber: 1 }, { unique: true });
+stockTransferOutwardSchema.index({ mucNumber: 1, orderId: 1 });
 
 module.exports = mongoose.model('StockTransferOutward', stockTransferOutwardSchema); 

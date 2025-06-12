@@ -3,6 +3,8 @@ import axios from 'axios';
 import '../../../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
 
+const API_URL = 'http://localhost:5000/api';
+
 const ProductMasterOnline = () => {
   const [activeTab, setActiveTab] = useState('add');
   const [formData, setFormData] = useState({
@@ -49,7 +51,7 @@ const ProductMasterOnline = () => {
   const fetchProductsOnline = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/productsonline');
+      const response = await axios.get(`${API_URL}/products-online`);
       setProductsOnline(response.data);
       setError(null);
     } catch (err) {
@@ -61,7 +63,7 @@ const ProductMasterOnline = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/categories/');
+      const response = await axios.get(`${API_URL}/categories/`);
       setCategories(response.data);
     } catch (err) {
       setError('Error fetching categories: ' + err.message);
@@ -70,7 +72,7 @@ const ProductMasterOnline = () => {
 
   const fetchGrades = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/grades/');
+      const response = await axios.get(`${API_URL}/grades/`);
       setGrades(response.data);
     } catch (err) {
       setError('Error fetching grades: ' + err.message);
@@ -79,7 +81,7 @@ const ProductMasterOnline = () => {
 
   const fetchHsnCodes = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/hsn/');
+      const response = await axios.get(`${API_URL}/hsn/`);
       setHsnCodes(response.data);
     } catch (err) {
       setError('Error fetching HSN codes: ' + err.message);
@@ -120,11 +122,11 @@ const ProductMasterOnline = () => {
       console.log('Sending data to server:', productOnlineData);
 
       if (editingId) {
-        await axios.put(`http://localhost:5000/api/productsonline/${editingId}`, productOnlineData);
+        await axios.put(`${API_URL}/products-online/${editingId}`, productOnlineData);
         alert('Product online updated successfully!');
       } else {
         try {
-          const response = await axios.post('http://localhost:5000/api/productsonline', productOnlineData);
+          const response = await axios.post(`${API_URL}/products-online`, productOnlineData);
           console.log('Server response:', response.data);
           alert('Product online added successfully!');
           // Reset form and refresh list
@@ -145,23 +147,13 @@ const ProductMasterOnline = () => {
           fetchProductsOnline();
           setActiveTab('list');
         } catch (err) {
-          console.error('Error response:', err.response);
-          if (err.response?.data?.message?.includes('SKU Code already exists')) {
-            alert('Error: A product with this SKU Code already exists. Please use a different SKU Code.');
-            setFormData(prev => ({
-              ...prev,
-              skuCode: ''
-            }));
-          } else if (err.response?.data?.fields) {
-            alert(`Error: Missing required fields: ${err.response.data.fields.join(', ')}`);
-          } else {
-            alert('Error: ' + (err.response?.data?.message || err.message));
-          }
+          console.error('Error saving product:', err);
+          alert('Failed to save product: ' + err.message);
         }
       }
     } catch (err) {
-      console.error('Error saving product online:', err);
-      alert('Error: ' + (err.response?.data?.message || err.message));
+      console.error('Error:', err);
+      alert('An error occurred: ' + err.message);
     }
   };
 
@@ -184,14 +176,14 @@ const ProductMasterOnline = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this product online?')) {
+    if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/productsonline/${id}`);
-        alert('Product online deleted successfully!');
+        await axios.delete(`${API_URL}/products-online/${id}`);
+        alert('Product deleted successfully!');
         fetchProductsOnline();
       } catch (err) {
-        alert('Error: ' + err.message);
-        console.error('Error deleting product online:', err);
+        console.error('Error deleting product:', err);
+        alert('Failed to delete product: ' + err.message);
       }
     }
   };

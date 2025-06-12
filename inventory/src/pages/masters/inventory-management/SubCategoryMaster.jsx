@@ -3,6 +3,8 @@ import axios from 'axios';
 import '../../../styles/shared.css';
 import { FaSave, FaTimes, FaEdit, FaTrash, FaPlusCircle, FaList } from 'react-icons/fa';
 
+const API_URL = 'http://localhost:5000/api';
+
 const SubCategoryMaster = () => {
   const [activeTab, setActiveTab] = useState('add');
   const [formData, setFormData] = useState({
@@ -26,12 +28,11 @@ const SubCategoryMaster = () => {
   const fetchSubCategories = async () => {
     try {
       setLoading(true);
-      // Fetch sub-categories and populate the category field
-      const response = await axios.get('http://localhost:5000/sub-categories/');
+      const response = await axios.get(`${API_URL}/sub-categories/`);
       setSubCategories(response.data);
       setError(null);
     } catch (err) {
-      setError('Error fetching sub-categories: ' + err.message);
+      setError('Error fetching subcategories: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -39,7 +40,7 @@ const SubCategoryMaster = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/categories/');
+      const response = await axios.get(`${API_URL}/categories/`);
       setCategories(response.data);
     } catch (err) {
       setError('Error fetching categories: ' + err.message);
@@ -71,10 +72,10 @@ const SubCategoryMaster = () => {
       };
 
       if (editingId) {
-        await axios.post(`http://localhost:5000/sub-categories/update/${editingId}`, subCategoryData);
+        await axios.post(`${API_URL}/sub-categories/update/${editingId}`, subCategoryData);
         alert('Sub Category updated successfully!');
       } else {
-        await axios.post('http://localhost:5000/sub-categories/add', subCategoryData);
+        await axios.post(`${API_URL}/sub-categories/add`, subCategoryData);
         alert('Sub Category added successfully!');
       }
 
@@ -108,7 +109,7 @@ const SubCategoryMaster = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this sub category?')) {
       try {
-        await axios.delete(`http://localhost:5000/sub-categories/delete/${id}`);
+        await axios.delete(`${API_URL}/sub-categories/delete/${id}`);
         alert('Sub Category deleted successfully!');
         fetchSubCategories();
       } catch (err) {

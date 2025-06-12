@@ -13,12 +13,10 @@ const assignmentSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  locationStock: {
-    type: String
-  },
   labelNumber: {
     type: String,
-    required: true
+    required: true,
+    unique: true
   },
   qrCode: {
     type: String
@@ -52,5 +50,10 @@ const assignmentSchema = new mongoose.Schema({
     default: Date.now
   }
 }, { timestamps: true });
+
+assignmentSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
 
 module.exports = mongoose.model('Assignment', assignmentSchema); 

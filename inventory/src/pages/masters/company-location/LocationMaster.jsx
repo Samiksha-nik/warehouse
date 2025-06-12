@@ -4,6 +4,8 @@ import '../../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
 // import './LocationMaster.css';
 
+const API_URL = 'http://localhost:5000/api';
+
 const LocationMaster = () => {
   const [activeTab, setActiveTab] = useState('add');
   const [formData, setFormData] = useState({
@@ -57,7 +59,7 @@ const LocationMaster = () => {
   const fetchLocations = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/locations/');
+      const response = await axios.get(`${API_URL}/locations/`);
       setLocations(response.data);
       setError(null);
     } catch (err) {
@@ -70,7 +72,7 @@ const LocationMaster = () => {
   // Fetch companies
   const fetchCompanies = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/companies/');
+      const response = await axios.get(`${API_URL}/companies/`);
       setCompanies(response.data);
     } catch (err) {
       setError('Error fetching companies: ' + err.message);
@@ -80,7 +82,7 @@ const LocationMaster = () => {
   // Fetch countries
   const fetchCountries = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/countries/');
+      const response = await axios.get(`${API_URL}/countries/`);
       setCountries(response.data);
     } catch (err) {
       setError('Error fetching countries: ' + err.message);
@@ -97,7 +99,7 @@ const LocationMaster = () => {
   // Fetch states
   const fetchStates = async (countryId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/states/country/${countryId}`);
+      const response = await axios.get(`${API_URL}/states/country/${countryId}`);
       setStates(response.data);
     } catch (err) {
       setError('Error fetching states: ' + err.message);
@@ -114,7 +116,7 @@ const LocationMaster = () => {
   // Fetch cities
   const fetchCities = async (stateId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/cities/state/${stateId}`);
+      const response = await axios.get(`${API_URL}/cities/state/${stateId}`);
       setCities(response.data);
     } catch (err) {
       setError('Error fetching cities: ' + err.message);
@@ -129,70 +131,71 @@ const LocationMaster = () => {
     }));
   };
 
-  const handleSaveLocation = async (e) => {
+  const handleSaveLocation = (e) => {
     e.preventDefault();
-    const locationData = {
-      locationCode: formData.locationCode,
-      locationName: formData.locationName,
-      company: formData.company,
-      addressLine1: formData.addressLine1,
-      addressLine2: formData.addressLine2,
-      country: formData.country,
-      state: formData.state,
-      city: formData.city,
-      pincode: formData.pincode,
-      telephone: formData.telephone,
-      mobile: formData.mobile,
-      fax: formData.fax,
-      email: formData.email,
-      gstinNo: formData.gstinNo,
-      pan: formData.pan,
-      remarks: formData.remarks,
-      status: formData.status
-    };
 
-    try {
-      if (editingId) {
-        await axios.post(`http://localhost:5000/locations/update/${editingId}`, locationData);
-        alert('Location updated successfully!');
-      } else {
-        await axios.post('http://localhost:5000/locations/add', locationData);
-        alert('Location added successfully!');
-      }
-      fetchLocations();
-      setFormData({
-        locationCode: '',
-        locationName: '',
-        addressLine1: '',
-        addressLine2: '',
-        addressLine3: '',
-        countryName: '',
-        stateName: '',
-        cityName: '',
-        pinCode: '',
-        mobileNo: '',
-        telephoneNo: '',
-        emailId: '',
-        status: 'active',
-        remark: '',
-        company: '',
-        country: '',
-        state: '',
-        city: '',
-        pincode: '',
-        fax: '',
-        gstinNo: '',
-        pan: '',
-        companyName: '',
-        companyCode: '',
-        telephone: '',
-        mobile: '',
-        email: '',
-        remarks: ''
-      });
-      setEditingId(null);
-    } catch (err) {
-      alert('Error: ' + err.message);
+    // Basic validation
+    if (!formData.locationName || !formData.locationCode || !formData.company || 
+        !formData.country || !formData.state || !formData.city) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+
+    if (editingId) {
+      axios.post(`${API_URL}/locations/update/${editingId}`, formData)
+        .then(res => {
+          console.log(res.data);
+          alert('Location updated successfully!');
+          setEditingId(null);
+          setFormData({
+            locationName: '',
+            locationCode: '',
+            company: '',
+            country: '',
+            state: '',
+            city: '',
+            pincode: '',
+            telephone: '',
+            mobile: '',
+            email: '',
+            gstinNo: '',
+            pan: '',
+            remarks: '',
+            status: 'active'
+          });
+          setActiveTab('list');
+        })
+        .catch(err => {
+          console.error('Error updating location:', err);
+          alert('Failed to update location.' + err.message);
+        });
+    } else {
+      axios.post(`${API_URL}/locations/add`, formData)
+        .then(res => {
+          console.log(res.data);
+          alert('Location added successfully!');
+          setFormData({
+            locationName: '',
+            locationCode: '',
+            company: '',
+            country: '',
+            state: '',
+            city: '',
+            pincode: '',
+            telephone: '',
+            mobile: '',
+            email: '',
+            gstinNo: '',
+            pan: '',
+            remarks: '',
+            status: 'active'
+          });
+          setActiveTab('list');
+        })
+        .catch(err => {
+          console.error('Error saving location:', err);
+          alert('Failed to save location.' + err.message);
+        });
     }
   };
 
@@ -220,15 +223,18 @@ const LocationMaster = () => {
     setActiveTab('add');
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteLocation = (id) => {
     if (window.confirm('Are you sure you want to delete this location?')) {
-      try {
-        await axios.delete(`http://localhost:5000/locations/delete/${id}`);
-        alert('Location deleted successfully!');
-        fetchLocations();
-      } catch (err) {
-        alert('Error: ' + err.message);
-      }
+      axios.delete(`${API_URL}/locations/delete/${id}`)
+        .then(res => {
+          console.log(res.data);
+          alert('Location deleted successfully!');
+          fetchLocations();
+        })
+        .catch(err => {
+          console.error('Error deleting location:', err);
+          alert('Failed to delete location.' + err.message);
+        });
     }
   };
 
@@ -552,7 +558,7 @@ const LocationMaster = () => {
                     </button>
                     <button
                       className="btn-icon"
-                      onClick={() => handleDelete(location._id)}
+                      onClick={() => handleDeleteLocation(location._id)}
                     >
                       <FaTrash />
                     </button>

@@ -24,15 +24,12 @@ const ReturnRefund = () => {
   const [formData, setFormData] = useState({
     type: 'return',
     onlineOrderId: '',
-    orderNo: '',
-    invoiceNo: '',
     labelNumber: '',
     returnDate: new Date().toISOString().split('T')[0],
-    status: 'pending',
     product: '',
     customerName: '',
     address: '',
-    qcImage: null,
+    productPhoto: null,
     remarks: ''
   });
 
@@ -105,15 +102,12 @@ const ReturnRefund = () => {
       setFormData({
         type: 'return',
         onlineOrderId: '',
-        orderNo: '',
-        invoiceNo: '',
         labelNumber: '',
         returnDate: new Date().toISOString().split('T')[0],
-        status: 'pending',
         product: '',
         customerName: '',
         address: '',
-        qcImage: null,
+        productPhoto: null,
         remarks: ''
       });
       fetchReturns();
@@ -133,10 +127,8 @@ const ReturnRefund = () => {
   };
 
   const handleFileChange = (e) => {
-    setFormData(prev => ({
-      ...prev,
-      qcImage: e.target.files[0]
-    }));
+    const file = e.target.files[0];
+    setFormData({ ...formData, productPhoto: file });
   };
 
   const handleLabelChange = (e) => {
@@ -164,22 +156,21 @@ const ReturnRefund = () => {
 
   // Handler to auto-fill fields based on Online Order ID
   const handleOnlineOrderIdBlur = async (e) => {
-    const orderId = e.target.value;
-    if (!orderId) return;
+    const { value } = e.target;
+    if (!value) return;
+
     try {
-      const response = await axios.get(`${API_BASE}/api/assignments?orderId=${orderId}`);
-      if (response.data && response.data.length > 0) {
-        const assignment = response.data[0];
+      const response = await axios.get(`${API_BASE}/api/orders/${value}`);
+      if (response.data) {
         setFormData(prev => ({
           ...prev,
-          status: assignment.status || prev.status,
-          product: assignment.labelDetails?.productName || prev.product,
-          customerName: assignment.customerName || prev.customerName,
-          address: assignment.address || prev.address,
+          customerName: response.data.customerName || '',
+          address: response.data.address || '',
+          product: response.data.product || ''
         }));
       }
     } catch (error) {
-      // Optionally show a toast or clear fields
+      console.error('Error fetching order details:', error);
     }
   };
 
@@ -256,8 +247,8 @@ const ReturnRefund = () => {
                 onChange={handleInputChange}
                 required
               >
-                <option value="cancel">Cancel</option>
                 <option value="return">Return</option>
+                <option value="cancel">Cancel</option>
                 <option value="replacement">Replacement</option>
               </select>
             </div>
@@ -270,28 +261,6 @@ const ReturnRefund = () => {
                 value={formData.onlineOrderId}
                 onChange={handleInputChange}
                 onBlur={handleOnlineOrderIdBlur}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Order Number</label>
-              <input
-                type="text"
-                name="orderNo"
-                value={formData.orderNo}
-                readOnly
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Invoice Number</label>
-              <input
-                type="text"
-                name="invoiceNo"
-                value={formData.invoiceNo}
-                readOnly
                 required
               />
             </div>
@@ -314,7 +283,7 @@ const ReturnRefund = () => {
                 type="date"
                 name="returnDate"
                 value={formData.returnDate}
-                readOnly
+                onChange={handleInputChange}
                 required
               />
             </div>
@@ -325,7 +294,8 @@ const ReturnRefund = () => {
                 type="text"
                 name="product"
                 value={formData.product}
-                readOnly
+                onChange={handleInputChange}
+                required
               />
             </div>
 
@@ -335,26 +305,18 @@ const ReturnRefund = () => {
                 type="text"
                 name="customerName"
                 value={formData.customerName}
-                readOnly
+                onChange={handleInputChange}
+                required
               />
             </div>
 
             <div className="form-group">
               <label>Address</label>
-              <textarea
+              <input
+                type="text"
                 name="address"
                 value={formData.address}
-                readOnly
-              />
-            </div>
-
-            <div className="form-group">
-              <label>QC Image</label>
-              <input
-                type="file"
-                name="qcImage"
-                onChange={handleFileChange}
-                accept="image/*"
+                onChange={handleInputChange}
                 required
               />
             </div>
@@ -365,22 +327,22 @@ const ReturnRefund = () => {
                 name="remarks"
                 value={formData.remarks}
                 onChange={handleInputChange}
+                required
               />
             </div>
 
             <div className="form-group">
-              <label>Status</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
+              <label htmlFor="productPhoto">Product Photo (JPG/PNG only)</label>
+              <input
+                type="file"
+                id="productPhoto"
+                name="productPhoto"
+                onChange={handleFileChange}
+                accept=".jpg,.jpeg,.png"
                 required
-              >
-                <option value="pending">Pending</option>
-                <option value="processing">Processing</option>
-                <option value="completed">Completed</option>
-                <option value="rejected">Rejected</option>
-              </select>
+                className="form-control"
+              />
+              <small className="text-muted">Only JPG and PNG files are allowed</small>
             </div>
 
             <button type="submit" className="btn-primary" disabled={loading}>
@@ -398,8 +360,6 @@ const ReturnRefund = () => {
                   <tr>
                     <th>Type</th>
                     <th>Online Order ID</th>
-                    <th>Order No</th>
-                    <th>Invoice No</th>
                     <th>Label No</th>
                     <th>Return Date</th>
                     <th>Product</th>
@@ -413,8 +373,6 @@ const ReturnRefund = () => {
                     <tr key={r._id}>
                       <td>{r.type}</td>
                       <td>{r.onlineOrderId}</td>
-                      <td>{r.orderNo}</td>
-                      <td>{r.invoiceNo}</td>
                       <td>{r.labelNumber}</td>
                       <td>{new Date(r.returnDate).toLocaleDateString()}</td>
                       <td>{r.product}</td>
@@ -431,14 +389,14 @@ const ReturnRefund = () => {
                         </select>
                       </td>
                       <td>
-                        <button
+                        <button 
                           className="btn-icon"
                           onClick={() => handleStatusChange(r._id, 'approved')}
                           title="Approve"
                         >
                           ✓
                         </button>
-                        <button
+                        <button 
                           className="btn-icon"
                           onClick={() => handleStatusChange(r._id, 'rejected')}
                           title="Reject"

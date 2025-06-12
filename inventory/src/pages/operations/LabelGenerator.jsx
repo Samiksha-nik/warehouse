@@ -6,6 +6,8 @@ import { PDFDownloadLink } from '@react-pdf/renderer';
 import LabelPDF from '../../component/LabelPDF';
 import QRScanner from '../../component/QRScanner';
 
+const API_URL = 'http://localhost:5000/api';
+
 const LabelGenerator = () => {
   const [activeTab, setActiveTab] = useState('generate');
   const [products, setProducts] = useState([]);
@@ -53,7 +55,7 @@ const LabelGenerator = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/products');
+      const response = await axios.get(`${API_URL}/products`);
       setProducts(response.data);
       setError(null);
     } catch (err) {
@@ -65,7 +67,7 @@ const LabelGenerator = () => {
 
   const fetchUnits = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/units');
+      const response = await axios.get(`${API_URL}/units`);
       setUnits(response.data);
     } catch (err) {
       setError('Error fetching units: ' + err.message);
@@ -74,7 +76,7 @@ const LabelGenerator = () => {
 
   const fetchGrades = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/grades');
+      const response = await axios.get(`${API_URL}/grades`);
       setGrades(response.data);
     } catch (err) {
       setError('Error fetching grades: ' + err.message);
@@ -84,7 +86,7 @@ const LabelGenerator = () => {
   const fetchLabels = async () => {
     try {
       setLoading(true);
-      let url = 'http://localhost:5000/api/labels';
+      let url = `${API_URL}/labels`;
       
       const params = new URLSearchParams();
       
@@ -122,7 +124,7 @@ const LabelGenerator = () => {
       return;
     }
     try {
-      const response = await axios.get(`http://localhost:5000/api/labels/check-muc/${mucNumber}`);
+      const response = await axios.get(`${API_URL}/labels/check-muc/${mucNumber}`);
       if (response.data.exists) {
         setDialogMessage('This MUC number is already used in a label. Please enter a unique MUC number.');
         setDialogOpen(true);
@@ -179,7 +181,7 @@ const LabelGenerator = () => {
 
       console.log('Formatted data:', formattedData);
 
-      const response = await axios.post('http://localhost:5000/api/labels', formattedData);
+      const response = await axios.post(`${API_URL}/labels`, formattedData);
       setLabels([...labels, response.data]);
       setFormData({
         mucNumber: '',
@@ -208,11 +210,11 @@ const LabelGenerator = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this label?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/labels/${id}`);
+        await axios.delete(`${API_URL}/labels/${id}`);
         alert('Label deleted successfully!');
         fetchLabels();
-      } catch (err) {
-        alert('Error deleting label: ' + err.message);
+      } catch (error) {
+        alert('Error deleting label: ' + error.message);
       }
     }
   };

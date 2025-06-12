@@ -3,6 +3,8 @@ import axios from 'axios';
 import '../../../styles/shared.css';
 import { FaSave, FaTimes, FaEdit, FaTrash, FaPlusCircle, FaList } from 'react-icons/fa';
 
+const API_URL = 'http://localhost:5000/api';
+
 const HSNMaster = () => {
   const [activeTab, setActiveTab] = useState('add');
   const [formData, setFormData] = useState({
@@ -26,7 +28,7 @@ const HSNMaster = () => {
   const fetchHsnCodes = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/hsn/');
+      const response = await axios.get(`${API_URL}/hsn/`);
       setHsnCodes(response.data);
       setError(null);
     } catch (err) {
@@ -63,10 +65,10 @@ const HSNMaster = () => {
       };
 
       if (editingId) {
-        await axios.post(`http://localhost:5000/hsn/update/${editingId}`, hsnData);
+        await axios.post(`${API_URL}/hsn/update/${editingId}`, hsnData);
         alert('HSN Code updated successfully!');
       } else {
-        await axios.post('http://localhost:5000/hsn/add', hsnData);
+        await axios.post(`${API_URL}/hsn/add`, hsnData);
         alert('HSN Code added successfully!');
       }
 
@@ -104,7 +106,7 @@ const HSNMaster = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this HSN code?')) {
       try {
-        await axios.delete(`http://localhost:5000/hsn/delete/${id}`);
+        await axios.delete(`${API_URL}/hsn/delete/${id}`);
         alert('HSN Code deleted successfully!');
         fetchHsnCodes();
       } catch (err) {

@@ -14,16 +14,35 @@ const dispatchSchema = new mongoose.Schema({
     type: String, // or mongoose.Schema.Types.ObjectId if referencing Customer
     required: true
   },
+  orderId: {
+    type: String,
+    required: true
+  },
   invoiceUrl: {
     type: String
   },
   qrCode: {
-    type: String
+    type: String // This is where the MUC number string is stored from frontend
   },
+  productPhotoUrl: {
+    type: String // New field for the uploaded product photo URL
+  },
+  mucNumber: { type: String, required: true },
+  productName: { type: String, required: true },
+  unit: { type: String, required: true },
+  grade: { type: String, required: true },
+  length: { type: Number, required: true },
+  width: { type: Number, required: true },
+  thickness: { type: Number, required: true },
+  totalMm: { type: Number, required: true },
+  quantity: { type: Number, required: true },
+  bundleNumber: { type: String },
+  fromLocation: { type: String, required: true },
+  toLocation: { type: String, required: true },
   products: [
     {
-      product: { type: String, required: true }, // or ObjectId if referencing Product
-      quantity: { type: Number, required: true }
+      product: { type: String },
+      quantity: { type: Number }
     }
   ],
   shippingAddress: {
