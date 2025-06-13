@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const Assignment = require('../models/Assignment');
+const StockTransferInward = require('../models/StockTransferInward');
+const StockTransferOutward = require('../models/StockTransferOutward');
 const Dispatch = require('../models/Dispatch');
 
 // Helper function to convert query parameters to regex for partial matching
@@ -8,66 +9,66 @@ const createRegex = (query) => query ? new RegExp(query, 'i') : null;
 
 router.get('/', async (req, res) => {
   try {
-    const { fromDate, toDate, productName, grade, fromLocation } = req.query;
+    const { fromDate, toDate, productName, grade } = req.query;
 
-    let matchConditions = {};
+    // Create date conditions for each model type
+    const inwardDateConditions = {};
+    const outwardDateConditions = {};
+    const dispatchDateConditions = {};
 
-    // Date filtering (assuming createdAt or similar field in Assignment/Dispatch)
     if (fromDate || toDate) {
-      matchConditions.createdAt = {};
       if (fromDate) {
-        matchConditions.createdAt.$gte = new Date(fromDate);
+        inwardDateConditions.date = { $gte: new Date(fromDate) };
+        outwardDateConditions.date = { $gte: new Date(fromDate) };
+        dispatchDateConditions.dispatchDate = { $gte: new Date(fromDate) };
       }
       if (toDate) {
-        // Set to the end of the day for inclusive date range
         let toDateObj = new Date(toDate);
         toDateObj.setHours(23, 59, 59, 999);
-        matchConditions.createdAt.$lte = toDateObj;
+        inwardDateConditions.date = { ...inwardDateConditions.date, $lte: toDateObj };
+        outwardDateConditions.date = { ...outwardDateConditions.date, $lte: toDateObj };
+        dispatchDateConditions.dispatchDate = { ...dispatchDateConditions.dispatchDate, $lte: toDateObj };
       }
     }
 
     // Prepare regex for product and grade for partial matching
     const productNameRegex = createRegex(productName);
     const gradeRegex = createRegex(grade);
-    const lengthValue = parseFloat(req.query.length);
-    const widthValue = parseFloat(req.query.width);
 
-    // Fetch incoming stock (assignments)
-    let assignmentPipeline = [
+    // Get all inward MUCs
+    const inwardMUCs = await StockTransferInward.distinct('mucNumber', {
+      ...inwardDateConditions,
+      ...(productNameRegex && { productName: productNameRegex }),
+      ...(gradeRegex && { grade: gradeRegex }),
+    });
+
+    // Get all outward MUCs
+    const outwardMUCs = await StockTransferOutward.distinct('mucNumber', {
+      ...outwardDateConditions,
+      ...(productNameRegex && { productName: productNameRegex }),
+      ...(gradeRegex && { grade: gradeRegex }),
+    });
+
+    // Get all dispatched MUCs
+    const dispatchMUCs = await Dispatch.distinct('mucNumber', {
+      ...dispatchDateConditions,
+      ...(productNameRegex && { productName: productNameRegex }),
+      ...(gradeRegex && { grade: gradeRegex }),
+    });
+
+    // Filter to get only available MUCs (inwarded but not outwarded or dispatched)
+    const availableMUCs = inwardMUCs.filter(muc => 
+      !outwardMUCs.includes(muc) && !dispatchMUCs.includes(muc)
+    );
+
+    // Fetch inward stock only for available MUCs
+    let inwardPipeline = [
       {
         $match: {
-          ...matchConditions,
-          ...(productNameRegex && { 'labelDetails.productName': productNameRegex }),
-          ...(gradeRegex && { 'labelDetails.grade': gradeRegex }),
-          ...(lengthValue && { 'labelDetails.length': lengthValue }),
-          ...(widthValue && { 'labelDetails.width': widthValue }),
-        }
-      },
-      {
-        $group: {
-          _id: {
-            productName: '$labelDetails.productName',
-            grade: '$labelDetails.grade',
-            unit: '$labelDetails.unit',
-            bundleNumber: '$labelDetails.bundleNumber',
-            fromLocation: '$locationStock',
-            mucNumber: '$labelNumber' // Add MUC number from Assignment
-          },
-          totalInwardQuantity: { $sum: '$labelDetails.quantity' }
-        }
-      }
-    ];
-    const incomingStock = await Assignment.aggregate(assignmentPipeline);
-
-    // Fetch outgoing stock (dispatches)
-    let dispatchPipeline = [
-      {
-        $match: {
-          ...matchConditions, // Apply same date filter
-          ...(productNameRegex && { 'productName': productNameRegex }),
-          ...(gradeRegex && { 'grade': gradeRegex }),
-          ...(lengthValue && { 'length': lengthValue }),
-          ...(widthValue && { 'width': widthValue }),
+          ...inwardDateConditions,
+          ...(productNameRegex && { productName: productNameRegex }),
+          ...(gradeRegex && { grade: gradeRegex }),
+          mucNumber: { $in: availableMUCs }
         }
       },
       {
@@ -77,40 +78,44 @@ router.get('/', async (req, res) => {
             grade: '$grade',
             unit: '$unit',
             bundleNumber: '$bundleNumber',
-            fromLocation: '$fromLocation',
-            mucNumber: '$mucNumber' // Add MUC number from Dispatch
+            mucNumber: '$mucNumber'
           },
-          totalOutgoingQuantity: { $sum: '$quantity' }
+          totalInwardQuantity: { $sum: '$quantity' }
         }
       }
     ];
-    const outgoingStock = await Dispatch.aggregate(dispatchPipeline);
+    const inwardStock = await StockTransferInward.aggregate(inwardPipeline);
 
-    // Combine and calculate net stock
-    const stockMap = new Map();
+    // Convert to final report format
+    let stockReport = inwardStock.map(item => ({
+      mucNumber: item._id.mucNumber,
+      productName: item._id.productName,
+      grade: item._id.grade,
+      unit: item._id.unit,
+      bundleNumber: item._id.bundleNumber,
+      totalInward: item.totalInwardQuantity,
+      totalOutward: 0,
+      totalDispatched: 0,
+      remainingQuantity: item.totalInwardQuantity
+    }));
 
-    incomingStock.forEach(item => {
-      const key = JSON.stringify(item._id);
-      stockMap.set(key, { ...item._id, netQuantity: item.totalInwardQuantity });
+    // Fetch length and width for each mucNumber, productName, grade, bundleNumber
+    const mucDetails = await StockTransferInward.find({ mucNumber: { $in: availableMUCs } }, { mucNumber: 1, productName: 1, grade: 1, bundleNumber: 1, length: 1, width: 1 }).lean();
+    stockReport = stockReport.map(r => {
+      const match = mucDetails.find(doc =>
+        doc.mucNumber === r.mucNumber &&
+        doc.productName === r.productName &&
+        doc.grade === r.grade &&
+        (doc.bundleNumber || '') === (r.bundleNumber || '')
+      );
+      return {
+        ...r,
+        length: match?.length || '',
+        width: match?.width || ''
+      };
     });
 
-    outgoingStock.forEach(item => {
-      const key = JSON.stringify(item._id);
-      if (stockMap.has(key)) {
-        const existing = stockMap.get(key);
-        existing.netQuantity -= item.totalOutgoingQuantity;
-        stockMap.set(key, existing);
-      } else {
-        // This case should ideally not happen if all outgoing stock has an inward counterpart
-        // but included for robustness, indicating negative stock or unassigned outgoing
-        stockMap.set(key, { ...item._id, netQuantity: -item.totalOutgoingQuantity });
-      }
-    });
-
-    // Convert map to array and filter out items with 0 or negative net quantity if desired
-    const netStockReport = Array.from(stockMap.values()).filter(item => item.netQuantity > 0);
-
-    res.json(netStockReport);
+    res.json(stockReport);
 
   } catch (err) {
     console.error('Error generating stock report:', err);
@@ -118,4 +123,4 @@ router.get('/', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

@@ -5,6 +5,9 @@ import { FaSave, FaTimes, FaPlus, FaEdit, FaTrash, FaArrowLeft, FaFilePdf } from
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import LabelPDF from '../../component/LabelPDF';
 import QRScanner from '../../component/QRScanner';
+import styles from './LabelGenerator.module.css';
+import tableStyles from '../../styles/TableStyles.module.css';
+
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -316,7 +319,7 @@ const LabelGenerator = () => {
   const renderGenerateForm = () => (
     <div className="card">
       <form onSubmit={handleSubmit} className="form-container">
-        <div className="form-grid">
+        <div className={styles.formGrid}>
           <div className="form-group">
             <label htmlFor="mucNumber">MUC Number*</label>
             <input
@@ -326,7 +329,7 @@ const LabelGenerator = () => {
               value={formData.mucNumber}
               onChange={handleChange}
               required
-              className="form-control"
+              className={styles.formControl}
               placeholder="Enter MUC Number"
             />
           </div>
@@ -339,7 +342,7 @@ const LabelGenerator = () => {
               value={formData.inventoryType}
               onChange={handleChange}
               required
-              className="form-control"
+              className={styles.formControl}
             >
               <option value="">Select Type</option>
               <option value="Billing">Billing</option>
@@ -349,7 +352,7 @@ const LabelGenerator = () => {
 
           <div className="form-group">
             <label htmlFor="productName">Product Name</label>
-            <select id="productName" name="productName" value={formData.productName} onChange={handleChange} className="form-control">
+            <select id="productName" name="productName" value={formData.productName} onChange={handleChange} className={styles.formControl}>
               <option value="">Select Product</option>
               {products.map(product => (
                 <option key={product._id} value={product.productName}>
@@ -361,7 +364,7 @@ const LabelGenerator = () => {
 
           <div className="form-group">
             <label htmlFor="unit">Unit</label>
-            <select id="unit" name="unit" value={formData.unit} onChange={handleChange} className="form-control">
+            <select id="unit" name="unit" value={formData.unit} onChange={handleChange} className={styles.formControl}>
               <option value="">Select Unit</option>
               {units.map(unit => (
                 <option key={unit._id} value={unit.unitName}>
@@ -373,7 +376,7 @@ const LabelGenerator = () => {
 
           <div className="form-group">
             <label htmlFor="gradeValue">Grade Value</label>
-            <select id="gradeValue" name="gradeValue" value={formData.gradeValue} onChange={handleChange} className="form-control">
+            <select id="gradeValue" name="gradeValue" value={formData.gradeValue} onChange={handleChange} className={styles.formControl}>
               <option value="">Select Grade Value</option>
               {grades.map(grade => (
                 <option key={grade._id} value={grade.gradeName}>
@@ -392,7 +395,7 @@ const LabelGenerator = () => {
               value={formData.length} 
               onChange={handleChange} 
               placeholder="Enter length" 
-              className="form-control"
+              className={styles.formControl}
               min="0"
               step="0.01"
             />
@@ -407,7 +410,7 @@ const LabelGenerator = () => {
               value={formData.width} 
               onChange={handleChange} 
               placeholder="Enter width" 
-              className="form-control"
+              className={styles.formControl}
               min="0"
               step="0.01"
             />
@@ -422,7 +425,7 @@ const LabelGenerator = () => {
               value={formData.thickness} 
               onChange={handleChange} 
               placeholder="Enter thickness" 
-              className="form-control"
+              className={styles.formControl}
               min="0"
               step="0.01"
             />
@@ -435,7 +438,7 @@ const LabelGenerator = () => {
               id="totalMM" 
               name="totalMM" 
               value={formData.totalMM} 
-              className="form-control" 
+              className={styles.formControl} 
               readOnly 
               placeholder="Auto-calculated"
             />
@@ -450,7 +453,7 @@ const LabelGenerator = () => {
               value={formData.quantity} 
               onChange={handleChange} 
               placeholder="Enter quantity" 
-              className="form-control" 
+              className={styles.formControl} 
               min="0" 
             />
           </div>
@@ -464,7 +467,7 @@ const LabelGenerator = () => {
               value={formData.bundleNumber} 
               onChange={handleChange} 
               placeholder="Enter bundle number" 
-              className="form-control" 
+              className={styles.formControl} 
             />
           </div>
 
@@ -476,7 +479,7 @@ const LabelGenerator = () => {
               value={formData.remark} 
               onChange={handleChange} 
               placeholder="Enter any additional notes here..." 
-              className="form-control" 
+              className={styles.formControl} 
               rows="3" 
             />
           </div>
@@ -509,15 +512,15 @@ const LabelGenerator = () => {
         <h2>Generated Labels</h2>
         
         {/* All filters in a single horizontal row */}
-        <div className="filter-row">
-          <div className="filter-group">
+        <div className={styles.filterRow}>
+          <div className={styles.filterGroup}>
             <input
               type="date"
               id="startDate"
               name="startDate"
               value={dateRange.startDate}
               onChange={handleDateRangeChange}
-              className="form-control"
+              className={styles.formControl}
               placeholder="From Date"
             />
             <input
@@ -526,37 +529,22 @@ const LabelGenerator = () => {
               name="endDate"
               value={dateRange.endDate}
               onChange={handleDateRangeChange}
-              className="form-control"
+              className={styles.formControl}
               placeholder="To Date"
             />
-            <button 
-              onClick={handleDateFilter}
-              className="btn-primary"
-            >
-              Filter
-            </button>
-            <button 
-              onClick={clearDateFilter}
-              className="btn-secondary"
-            >
-              Clear
-            </button>
+            <button onClick={handleDateFilter} className="btn-primary">Filter</button>
+            <button onClick={clearDateFilter} className="btn-secondary">Clear</button>
           </div>
-          <div className="search-group">
+          <div className={styles.searchGroup}>
             <input
               type="text"
               id="searchMuc"
               value={searchMuc}
               onChange={(e) => setSearchMuc(e.target.value)}
               placeholder="Search MUC number"
-              className="form-control"
+              className={styles.formControl}
             />
-            <button 
-              onClick={handleMucSearch}
-              className="btn-primary"
-            >
-              Search
-            </button>
+            <button onClick={handleMucSearch} className="btn-primary">Search</button>
           </div>
         </div>
 
@@ -583,7 +571,7 @@ const LabelGenerator = () => {
                 <tr key={label._id}>
                   <td>{label.mucNumber || '-'}</td>
                   <td>{label.inventoryType}</td>
-                  <td>{label.productName}</td>
+                  <td className={tableStyles.productNameCell}>{label.productName}</td>
                   <td>{label.unit}</td>
                   <td>{label.gradeValue}</td>
                   <td>{label.length}</td>
@@ -593,22 +581,24 @@ const LabelGenerator = () => {
                   <td>{label.quantity}</td>
                   <td>{label.bundleNumber}</td>
                   <td>
-                    <button
-                      className="btn-icon"
-                      onClick={() => handleDelete(label._id)}
-                      title="Delete"
-                    >
-                      <FaTrash />
-                    </button>
-                    <PDFDownloadLink
-                      document={<LabelPDF labelData={label} />}
-                      fileName={`label-${label.mucNumber || label._id}.pdf`}
-                      className="btn-icon"
-                    >
-                      {({ loading }) => (
-                        loading ? 'Loading...' : <FaFilePdf />
-                      )}
-                    </PDFDownloadLink>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <button
+                        className="btn-icon"
+                        onClick={() => handleDelete(label._id)}
+                        title="Delete"
+                      >
+                        <FaTrash />
+                      </button>
+                      <PDFDownloadLink
+                        document={<LabelPDF labelData={label} />}
+                        fileName={`label-${label.mucNumber || label._id}.pdf`}
+                        className="btn-icon"
+                      >
+                        {({ loading }) => (
+                          loading ? 'Loading...' : <FaFilePdf />
+                        )}
+                      </PDFDownloadLink>
+                    </div>
                   </td>
                 </tr>
               ))}

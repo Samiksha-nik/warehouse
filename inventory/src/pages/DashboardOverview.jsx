@@ -14,7 +14,7 @@ const DashboardOverview = () => {
       </div>
       <div className="dashboard-grid">
         <div className="greeting-column">
-          <GreetingCard name="John" dispatchCount={24} />
+          <GreetingCard name="Admin" dispatchCount={24} />
           <RevenueChart />
         </div>
         <div className="stat-grid">
@@ -27,21 +27,21 @@ const DashboardOverview = () => {
           />
           <StatCard 
             title="Total Income" 
-            value="$4,679" 
+            value="₹4,679" 
             growth="+29.42%" 
             icon={FaDollarSign} 
             color="#00cfe8" 
           />
           <StatCard 
             title="Product Sold" 
-            value="$2,456" 
+            value="₹2,456" 
             growth="-14.28%" 
             icon={FaBoxOpen} 
             color="#ff9f43" 
           />
           <StatCard 
             title="Transactions" 
-            value="$14,857" 
+            value="₹14,857" 
             growth="+28.14%" 
             icon={FaExchangeAlt} 
             color="#7367f0" 

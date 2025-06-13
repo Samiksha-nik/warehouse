@@ -175,8 +175,8 @@
 .master-subsection {
   display: flex;
   flex-direction: column;
-  margin-left: 0.5rem;
-  padding-left: 0.5rem;
+  /* margin-left: 0.5rem;
+  padding-left: 0.5rem; */
 }
 
 .master-subsection .nav-item {

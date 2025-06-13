@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import '../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaQrcode, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
+import tableStyles from '../../styles/TableStyles.module.css';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -329,7 +330,15 @@ const AssignInventory = () => {
     <div className="card">
       <form onSubmit={handleSaveAssignment} className="form-container">
         {/* Container for side-by-side blocks */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: '30px',
+            maxWidth: '100%',
+            overflowX: 'auto'
+          }}
+        >
           {/* Order Details Block */}
           <div className="card">
             <div className="card-header">Order Details</div>
@@ -587,7 +596,7 @@ const AssignInventory = () => {
                     <td>{assignment.labelNumber}</td>
                     <td>{assignment.customerName}</td>
                     <td>{assignment.orderId}</td>
-                    <td>{assignment.labelDetails?.productName || '-'}</td>
+                    <td className={tableStyles.productNameCell}>{assignment.labelDetails?.productName || '-'}</td>
                     <td>{assignment.labelDetails?.unit || '-'}</td>
                     <td>{assignment.labelDetails?.grade || '-'}</td>
                     <td>{assignment.labelDetails?.length || '-'}</td>

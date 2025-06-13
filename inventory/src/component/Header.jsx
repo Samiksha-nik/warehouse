@@ -1,10 +1,20 @@
-import React, { useState } from 'react';
-import { FaUser, FaSignInAlt, FaBuilding } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaUser, FaSignOutAlt, FaBuilding } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 import './Header.css';
 
 const Header = () => {
+  const navigate = useNavigate();
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
-  const [selectedCompany, setSelectedCompany] = useState('Select Company');
+  const [selectedCompany, setSelectedCompany] = useState('BOUJEE BALANCEE PRIVATE LIMITED');
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
 
   const companies = [
     'BOUJEE BALANCEE PRIVATE LIMITED',
@@ -15,9 +25,8 @@ const Header = () => {
     setIsCompanyDropdownOpen(false);
   };
 
-  const handleLogin = () => {
-    // Add your login logic here
-    console.log('Login clicked');
+  const handleLogout = () => {
+    navigate('/logout');
   };
 
   return (
@@ -48,15 +57,25 @@ const Header = () => {
             )}
           </div>
 
-          <button className="login-button" onClick={handleLogin}>
-            <FaUser className="icon" />
-            <span>Login</span>
-            <FaSignInAlt className="icon" />
-          </button>
+          {user ? (
+            <div className="user-info">
+              <span className="user-name">{user.name}</span>
+              <button className="logout-button" onClick={handleLogout}>
+                <FaUser className="icon" />
+                <span>Logout</span>
+                <FaSignOutAlt className="icon" />
+              </button>
+            </div>
+          ) : (
+            <button className="login-button" onClick={() => navigate('/login')}>
+              <FaUser className="icon" />
+              <span>Login</span>
+            </button>
+          )}
         </div>
       </div>
     </header>
   );
 };
 
-export default Header; 
+export default Header;

@@ -2,9 +2,16 @@ import './App.css';
 import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer } from 'react-toastify';
 import Sidebar from './component/Sidebar';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardOverview from './pages/DashboardOverview';
 import Header from './component/Header';
+import axios from 'axios';
+import Login from './pages/Auth/Login';
+import Logout from './pages/Auth/Logout';
+
+// Configure axios defaults
+axios.defaults.baseURL = 'http://localhost:5000/api';
+axios.defaults.withCredentials = true;
 
 // Master Pages - Company & Location
 import CountryMaster from './pages/masters/company-location/CountryMaster';
@@ -40,55 +47,397 @@ import ReturnRefund from './pages/operations/ReturnRefund';
 // Reports
 import StockReport from './pages/reports/stockReport';
 
+// Protected Route component
+const ProtectedRoute = ({ children }) => {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+  return children;
+};
+
 function App() {
   return (
     <BrowserRouter>
       <div className="app">
+        <Routes>
+          {/* Auth Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/logout" element={<Logout />} />
+
+          {/* Protected Routes */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <>
         <Header />
       <div className="app-layout">
         <Sidebar />
         <main className="main-content">
-          <Routes>
-            {/* Dashboard */}
-            <Route path="/" element={<DashboardOverview />} />
+                      <DashboardOverview />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
 
-            {/* Master Pages - Company & Location */}
-            <Route path="/masters/company-location/country" element={<CountryMaster />} />
-            <Route path="/masters/company-location/state" element={<StateMaster />} />
-            <Route path="/masters/company-location/city" element={<CityMaster />} />
-            <Route path="/masters/company-location/company" element={<CompanyMaster />} />
-            <Route path="/masters/company-location/location" element={<LocationMaster />} />
-            <Route path="/masters/company-location/address" element={<AddressMaster />} />
-
-            {/* Master Pages - Account Management */}
-            <Route path="/masters/account-management/customer" element={<CustomerMaster />} />
-            <Route path="/masters/account-management/supplier" element={<SupplierMaster />} />
-
-            {/* Master Pages - Inventory Management */}
-            <Route path="/masters/inventory-management/unit" element={<UnitMaster />} />
-            <Route path="/masters/inventory-management/grade" element={<GradeMaster />} />
-            <Route path="/masters/inventory-management/hsn" element={<HSNMaster />} />
-            <Route path="/masters/inventory-management/category" element={<CategoryMaster />} />
-            <Route path="/masters/inventory-management/sub-category" element={<SubCategoryMaster />} />
-
-            {/* Master Pages - Product Management */}
-            <Route path="/masters/inventory-management/product-management/product" element={<ProductMaster />} />
-            <Route path="/masters/inventory-management/product-management/product-online" element={<ProductMasterOnline />} />
-            <Route path="/masters/inventory-management/product-management/raw-material" element={<RawMaterialMaster />} />
-
-            {/* Operations */}
-            <Route path="/label-generator" element={<LabelGenerator />} />
-            <Route path="/assign-inventory" element={<AssignInventory />} />
-            <Route path="/stock-transfer" element={<StockTransfer />} />
-            <Route path="/dispatch" element={<Dispatch />} />
-            <Route path="/operations/return-refund" element={<ReturnRefund />} />
-
-            {/* Reports */}
-            <Route path="/reports/stock-report" element={<StockReport />} />
+          {/* Other Protected Routes */}
+          <Route
+            path="/masters/company-location/country"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <CountryMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/company-location/state"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <StateMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/company-location/city"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <CityMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/company-location/company"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <CompanyMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/company-location/location"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <LocationMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/company-location/address"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <AddressMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/account-management/customer"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <CustomerMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/account-management/supplier"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <SupplierMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/inventory-management/unit"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <UnitMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/inventory-management/grade"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <GradeMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/inventory-management/hsn"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <HSNMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/inventory-management/category"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <CategoryMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/inventory-management/sub-category"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <SubCategoryMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/inventory-management/product-management/product"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <ProductMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/inventory-management/product-management/product-online"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <ProductMasterOnline />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/masters/inventory-management/product-management/raw-material"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <RawMaterialMaster />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/label-generator"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <LabelGenerator />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/assign-inventory"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <AssignInventory />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stock-transfer"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <StockTransfer />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dispatch"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <Dispatch />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/operations/return-refund"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <ReturnRefund />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/stock-report"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <StockReport />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
           </Routes>
-        </main>
         <ToastContainer position="top-right" autoClose={3000} />
-        </div>
       </div>
     </BrowserRouter>
   );

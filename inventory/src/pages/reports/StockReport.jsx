@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import '../../styles/shared.css';
-import { Link } from 'react-router-dom';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const StockReport = () => {
   const [filters, setFilters] = useState({
     fromDate: '',
     toDate: '',
-    categoryName: '',
     productName: '',
     grade: '',
     length: '',
@@ -54,6 +56,8 @@ const StockReport = () => {
         toDate: filters.toDate,
         productName: filters.productName,
         grade: filters.grade,
+        length: filters.length,
+        width: filters.width
       };
 
       const response = await axios.get('http://localhost:5000/api/stock-report', { params });
@@ -67,11 +71,55 @@ const StockReport = () => {
     }
   };
 
+  const handleExportExcel = () => {
+    if (!stockReportData.length) return;
+    const worksheet = XLSX.utils.json_to_sheet(stockReportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "StockReport");
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const data = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(data, "StockReport.xlsx");
+  };
+
+  const handleExportPDF = () => {
+    if (!stockReportData.length) return;
+    const doc = new jsPDF();
+    doc.text('Stock Report', 14, 16);
+    const tableColumn = [
+      'MUC Number',
+      'Product Name',
+      'Grade',
+      'Unit',
+      'Length',
+      'Width',
+      'Bundle Number',
+      'Remaining Quantity',
+    ];
+    const tableRows = stockReportData.map(item => [
+      item.mucNumber,
+      item.productName,
+      item.grade,
+      item.unit,
+      item.length,
+      item.width,
+      item.bundleNumber,
+      item.remainingQuantity,
+    ]);
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 22,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [25, 118, 210] },
+    });
+    doc.save('StockReport.pdf');
+  };
+
   return (
     <div className="container">
       <div className="page-header">
         <h2>Stock Report</h2>
-        <p className="page-description">View comprehensive stock reports</p>
+        <p className="page-description">View remaining stock quantities</p>
       </div>
       <div className="card">
         <div className="form-container">
@@ -99,20 +147,6 @@ const StockReport = () => {
                 value={filters.toDate}
                 onChange={handleInputChange}
                 className="form-control"
-              />
-            </div>
-
-            {/* Category Name (Optional) */}
-            <div className="form-group">
-              <label htmlFor="categoryName">Category Name</label>
-              <input
-                type="text"
-                id="categoryName"
-                name="categoryName"
-                value={filters.categoryName}
-                onChange={handleInputChange}
-                className="form-control"
-                placeholder="Enter Category Name"
               />
             </div>
 
@@ -154,7 +188,7 @@ const StockReport = () => {
               </select>
             </div>
 
-            {/* Length (Optional) */}
+            {/* Length */}
             <div className="form-group">
               <label htmlFor="length">Length</label>
               <input
@@ -169,7 +203,7 @@ const StockReport = () => {
               />
             </div>
 
-            {/* Width (Optional) */}
+            {/* Width */}
             <div className="form-group">
               <label htmlFor="width">Width</label>
               <input
@@ -195,32 +229,46 @@ const StockReport = () => {
         {error && <p className="error-message">{error}</p>}
 
         {!loading && !error && stockReportData.length > 0 && (
-          <div className="data-table-container">
-            <h3>Stock Report Results</h3>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>MUC Number</th>
-                  <th>Product Name</th>
-                  <th>Grade</th>
-                  <th>Unit</th>
-                  <th>Net Quantity</th>
-                  <th>Bundle Number</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stockReportData.map((item, index) => (
-                  <tr key={index}>
-                    <td>{item.mucNumber}</td>
-                    <td>{item.productName}</td>
-                    <td>{item.grade}</td>
-                    <td>{item.unit}</td>
-                    <td>{item.netQuantity}</td>
-                    <td>{item.bundleNumber}</td>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px', gap: '10px' }}>
+              <button onClick={handleExportExcel} className="btn-secondary">
+                Export Excel
+              </button>
+              <button onClick={handleExportPDF} className="btn-secondary">
+                Export PDF
+              </button>
+            </div>
+            <div className="data-table-container">
+              <h3>Stock Report Results</h3>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>MUC Number</th>
+                    <th>Product Name</th>
+                    <th>Grade</th>
+                    <th>Unit</th>
+                    <th>Length</th>
+                    <th>Width</th>
+                    <th>Bundle Number</th>
+                    <th>Remaining Quantity</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {stockReportData.map((item, index) => (
+                    <tr key={index}>
+                      <td>{item.mucNumber}</td>
+                      <td>{item.productName}</td>
+                      <td>{item.grade}</td>
+                      <td>{item.unit}</td>
+                      <td>{item.length}</td>
+                      <td>{item.width}</td>
+                      <td>{item.bundleNumber}</td>
+                      <td>{item.remainingQuantity}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

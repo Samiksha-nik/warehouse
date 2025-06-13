@@ -415,6 +415,7 @@ const Dispatch = () => {
 
   return (
     <div className="page-container">
+      <div className='page-content card'>
       <div className="page-header">
         <h1>Dispatch</h1>
       </div>
@@ -649,13 +650,14 @@ const Dispatch = () => {
                       <td>{dispatch.orderId}</td>
                       <td>
                         {dispatch.invoiceUrl ? (
-                          <a 
-                            href={`http://localhost:5000${dispatch.invoiceUrl}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
+                          <button
+                            className="view-link"
+                            onClick={() => window.open(`http://localhost:5000/${dispatch.invoiceUrl}`, '_blank', 'noopener,noreferrer')}
+                            title="View Invoice PDF"
+                            type="button"
                           >
                             View
-                          </a>
+                          </button>
                         ) : '-'}
                       </td>
                       <td>
@@ -669,6 +671,7 @@ const Dispatch = () => {
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

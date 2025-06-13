@@ -3,6 +3,8 @@ import axios from 'axios';
 import { FaTrash, FaEdit } from 'react-icons/fa';
 import '../../styles/shared.css';
 import { toast } from 'react-hot-toast';
+import tableStyles from '../../styles/TableStyles.module.css';
+import styles from './StockTransfer.module.css';
 
 // Debounce function to limit API calls
 const debounce = (func, wait) => {
@@ -376,7 +378,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
         )}
         {/* Top Block */}
         <div className="form-block">
-          <div className="form-row">
+          <div className="form-row" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
             <div className="form-group">
               <label>MUC Number*</label>
               <input
@@ -588,9 +590,11 @@ const StockTransferOutward = ({ showForm, showList }) => {
             ></textarea>
           </div>
         </div>
-        <button type="submit" className="btn-primary" disabled={!mucValid}>
-          {editingId ? 'Update Transfer' : 'Create Transfer'}
-        </button>
+        <div className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+          <button type="submit" className={`btn-primary ${styles.submitButton}`} disabled={!mucValid}>
+            {editingId ? 'Update Transfer' : 'Create Transfer'}
+          </button>
+        </div>
       </form>
     </>
   );
@@ -601,7 +605,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
       
       {/* Filter row with MUC search */}
       <div className="filter-row">
-        <div className="search-group">
+        <div className="search-group" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
           <input
             type="text"
             id="searchMuc"
@@ -652,7 +656,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
                     <td>{transfer.mucNumber || ''}</td>
                     <td>{transfer.fromLocation || ''}</td>
                     <td>{transfer.toLocation || ''}</td>
-                    <td>{transfer.productName || ''}</td>
+                    <td className={tableStyles.productNameCell}>{transfer.productName || ''}</td>
                     <td>{transfer.unit || ''}</td>
                     <td>{transfer.grade || ''}</td>
                     <td>{transfer.length || ''}</td>

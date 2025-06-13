@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaTrash } from 'react-icons/fa';
 import '../../styles/shared.css';
+import styles from './StockTransfer.module.css';
+import tableStyles from '../../styles/TableStyles.module.css';
 
 const generateInwardNumber = (lastNumber = 0) => {
   // Example: BB/25-26/IN/001
@@ -351,233 +353,122 @@ const StockTransferInward = ({ showForm, showList }) => {
           }
         }
       `}</style>
-      <form onSubmit={handleSubmit} className="form-container" encType="multipart/form-data">
-        <h2>Inward Transfer</h2>
-        {message.text && (
-          <div className={`message ${message.type}`}>{message.text}</div>
-        )}
-        {/* Top Block */}
-        <div className="form-block">
-          <div className="form-row">
-            <div className="form-group">
-              <label>MUC Number*</label>
-              <input
-                type="text"
-                name="mucNumber"
-                value={formData.mucNumber}
-                onChange={handleInputChange}
-                onBlur={handleMucBlur}
-                required
-              />
+      <div className="card">
+        <form onSubmit={handleSubmit} className="form-container" encType="multipart/form-data">
+          <h2>Inward Transfer</h2>
+          {message.text && (
+            <div className={`message ${message.type}`}>{message.text}</div>
+          )}
+          {/* Top Block */}
+          <div className="form-block">
+            <div className="form-row">
+              <div className="form-group">
+                <label>MUC Number*</label>
+                <input type="text" name="mucNumber" value={formData.mucNumber} onChange={handleInputChange} onBlur={handleMucBlur} required className={styles.formControl} />
+              </div>
+              <div className="form-group">
+                <label>Inward Number*</label>
+                <input type="text" name="inwardNumber" value={formData.inwardNumber} readOnly className={styles.formControl} />
+              </div>
             </div>
-            <div className="form-group">
-              <label>Inward Number*</label>
-              <input
-                type="text"
-                name="inwardNumber"
-                value={formData.inwardNumber}
-                readOnly
-              />
+            <div className="form-row">
+              <div className="form-group">
+                <label>Date & Time*</label>
+                <input type="text" value={`${formData.date} ${formData.time}`} readOnly className={styles.formControl} />
+              </div>
+              <div className="form-group">
+                <label>From Location*</label>
+                <input type="text" name="fromLocation" value={formData.fromLocation} onChange={handleInputChange} required className={styles.formControl} />
+              </div>
             </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Date & Time*</label>
-              <input
-                type="text"
-                value={`${formData.date} ${formData.time}`}
-                readOnly
-              />
-            </div>
-            <div className="form-group">
-              <label>From Location*</label>
-              <input
-                type="text"
-                name="fromLocation"
-                value={formData.fromLocation}
-                onChange={handleInputChange}
-                required
-              />
+            <div className="form-row">
+              <div className="form-group">
+                <label>To Location*</label>
+                <input type="text" name="toLocation" value={formData.toLocation} onChange={handleInputChange} required className={styles.formControl} />
+              </div>
             </div>
           </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>To Location*</label>
-              <input
-                type="text"
-                name="toLocation"
-                value={formData.toLocation}
-                onChange={handleInputChange}
-                required
-              />
+          {/* Product Details Block */}
+          <div className="form-block">
+            <div className="form-row">
+              <div className="form-group">
+                <label>Product Name*</label>
+                <input type="text" name="productName" value={formData.productName} readOnly required className={styles.formControl} />
+              </div>
+              <div className="form-group">
+                <label>Unit*</label>
+                <input type="text" name="unit" value={formData.unit} readOnly required className={styles.formControl} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Grade*</label>
+                <input type="text" name="grade" value={formData.grade} readOnly required className={styles.formControl} />
+              </div>
+              <div className="form-group">
+                <label>Length*</label>
+                <input type="number" step="0.01" name="length" value={formData.length} readOnly required className={styles.formControl} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Width*</label>
+                <input type="number" step="0.01" name="width" value={formData.width} readOnly required className={styles.formControl} />
+              </div>
+              <div className="form-group">
+                <label>Thickness*</label>
+                <input type="number" step="0.01" name="thickness" value={formData.thickness} readOnly required className={styles.formControl} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Total MM*</label>
+                <input type="number" step="0.01" name="totalMm" value={formData.totalMm} readOnly className={styles.formControl} />
+              </div>
+              <div className="form-group">
+                <label>Quantity*</label>
+                <input type="number" step="0.01" name="quantity" value={formData.quantity} readOnly required className={styles.formControl} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Bundle Number</label>
+                <input type="text" name="bundleNumber" value={formData.bundleNumber} onChange={handleInputChange} className={styles.formControl} />
+              </div>
             </div>
           </div>
-        </div>
-        {/* Product Details Block */}
-        <div className="form-block">
-          <div className="form-row">
-            <div className="form-group">
-              <label>Product Name*</label>
-              <input
-                type="text"
-                name="productName"
-                value={formData.productName}
-                readOnly
-                required
-              />
+          {/* Vehicle Block */}
+          <div className="form-block">
+            <div className="form-row">
+              <div className="form-group">
+                <label>Vehicle Number*</label>
+                <input type="text" name="vehicleNumber" value={formData.vehicleNumber} onChange={handleInputChange} required className={styles.formControl} />
+              </div>
+              <div className="form-group">
+                <label>Destination*</label>
+                <input type="text" name="destination" value={formData.destination} onChange={handleInputChange} required className={styles.formControl} />
+              </div>
             </div>
-            <div className="form-group">
-              <label>Unit*</label>
-              <input
-                type="text"
-                name="unit"
-                value={formData.unit}
-                readOnly
-                required
-              />
+            <div className="form-row">
+              <div className="form-group">
+                <label>Transporter*</label>
+                <input type="text" name="transporter" value={formData.transporter} onChange={handleInputChange} required className={styles.formControl} />
+              </div>
+              <div className="form-group">
+                <label>Product Photo</label>
+                <input type="file" name="productPhoto" accept="image/*" onChange={handleInputChange} className={styles.formControl} />
+              </div>
             </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Grade*</label>
-              <input
-                type="text"
-                name="grade"
-                value={formData.grade}
-                readOnly
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Length*</label>
-              <input
-                type="number"
-                step="0.01"
-                name="length"
-                value={formData.length}
-                readOnly
-                required
-              />
+            <div className="form-row">
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Remarks</label>
+                <textarea name="remarks" value={formData.remarks} onChange={handleInputChange} className={styles.formControl} />
+              </div>
             </div>
           </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Width*</label>
-              <input
-                type="number"
-                step="0.01"
-                name="width"
-                value={formData.width}
-                readOnly
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Thickness*</label>
-              <input
-                type="number"
-                step="0.01"
-                name="thickness"
-                value={formData.thickness}
-                readOnly
-                required
-              />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Total MM*</label>
-              <input
-                type="number"
-                step="0.01"
-                name="totalMm"
-                value={formData.totalMm}
-                readOnly
-                className="readonly-input"
-              />
-            </div>
-            <div className="form-group">
-              <label>Quantity*</label>
-              <input
-                type="number"
-                step="0.01"
-                name="quantity"
-                value={formData.quantity}
-                readOnly
-                required
-              />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Bundle Number</label>
-              <input
-                type="text"
-                name="bundleNumber"
-                value={formData.bundleNumber}
-                onChange={handleInputChange}
-              />
-            </div>
-          </div>
-        </div>
-        {/* Bottom Block */}
-        <div className="form-block">
-          <div className="form-row">
-            <div className="form-group">
-              <label>Vehicle Number*</label>
-              <input
-                type="text"
-                name="vehicleNumber"
-                value={formData.vehicleNumber}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Destination*</label>
-              <input
-                type="text"
-                name="destination"
-                value={formData.destination}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Transporter*</label>
-              <input
-                type="text"
-                name="transporter"
-                value={formData.transporter}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Product Photo</label>
-              <input
-                type="file"
-                name="productPhoto"
-                accept="image/*"
-                onChange={handleInputChange}
-              />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Remarks</label>
-              <textarea
-                name="remarks"
-                value={formData.remarks}
-                onChange={handleInputChange}
-              />
-            </div>
-          </div>
-        </div>
-        <button type="submit" className="btn-primary">Save Inward Transfer</button>
-      </form>
+          <button type="submit" className="btn-primary">Save Inward Transfer</button>
+        </form>
+      </div>
     </>
   );
 
@@ -587,7 +478,7 @@ const StockTransferInward = ({ showForm, showList }) => {
       
       {/* Filter row with MUC search */}
       <div className="filter-row">
-        <div className="search-group">
+        <div className="search-group" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
           <input
             type="text"
             id="searchMuc"
@@ -638,7 +529,7 @@ const StockTransferInward = ({ showForm, showList }) => {
                   <td>{transfer.mucNumber}</td>
                   <td>{transfer.fromLocation}</td>
                   <td>{transfer.toLocation}</td>
-                  <td>{transfer.productName}</td>
+                  <td className={tableStyles.productNameCell}>{transfer.productName}</td>
                   <td>{transfer.unit}</td>
                   <td>{transfer.grade}</td>
                   <td>{transfer.length}</td>

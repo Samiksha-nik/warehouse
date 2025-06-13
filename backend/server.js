@@ -5,6 +5,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -21,6 +23,31 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your_super_secret_key',
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI || 'mongodb://localhost:27017/inventoryDB',
+    collectionName: 'sessions',
+    ttl: 14 * 24 * 60 * 60 // 14 days
+  }),
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 24, // 1 day
+    httpOnly: true,
+    secure: false, // Set to true in production with HTTPS
+    sameSite: 'lax'
+  }
+}));
+
+// Debug middleware to log session info (remove in production)
+app.use((req, res, next) => {
+  console.log('Session ID:', req.sessionID);
+  console.log('Session:', req.session);
+  next();
+});
 
 // Create uploads directory if it doesn't exist
 const uploadDir = path.join(__dirname, 'uploads');
@@ -65,6 +92,7 @@ const assignmentsRouter = require('./routes/assignments');
 const suppliersRouter = require('./routes/suppliers');
 const qrRoutes = require('./routes/qrRoutes');
 const stockReportRouter = require('./routes/stockReport');
+const authRouter = require('./routes/auth');
 
 // Use routes with consistent /api prefix
 app.use('/api/countries', countriesRouter);
@@ -92,6 +120,7 @@ app.use('/api/assignments', assignmentsRouter);
 app.use('/api/suppliers', suppliersRouter);
 app.use('/api/qr', qrRoutes);
 app.use('/api/stock-report', stockReportRouter);
+app.use('/api/auth', authRouter);
 
 // Basic route
 app.get('/', (req, res) => {

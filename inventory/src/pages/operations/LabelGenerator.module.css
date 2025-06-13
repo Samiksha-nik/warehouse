@@ -1,0 +1,76 @@
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formControl {
+  max-width: 400px;
+  width: 100%;
+}
+
+.smallButton {
+  padding: 0.4rem 1rem;
+  font-size: 0.95rem;
+  border-radius: 0.375rem;
+}
+
+.filterRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.filterGroup,
+.searchGroup {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.filterGroup input,
+.searchGroup input {
+  min-width: 180px;
+  height: 40px;
+  font-size: 1rem;
+}
+
+.filterGroup button,
+.searchGroup button {
+  height: 40px;
+  font-size: 1rem;
+  padding-top: 0;
+  padding-bottom: 0;
+  display: flex;
+  align-items: center;
+}
+
+.table-container {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.table td:nth-child(3) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.productNameCell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+} 
