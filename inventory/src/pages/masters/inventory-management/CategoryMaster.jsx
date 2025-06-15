@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../../../styles/shared.css';
 import { FaSave, FaTimes, FaEdit, FaTrash, FaPlusCircle, FaList } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -49,7 +50,7 @@ const CategoryMaster = () => {
     try {
       // Basic validation
       if (!formData.categoryName || !formData.generateInnerLabel || !formData.status) {
-        alert('Please fill in all required fields.');
+        toast.error('Please fill in all required fields.');
         return;
       }
 
@@ -62,10 +63,10 @@ const CategoryMaster = () => {
 
       if (editingId) {
         await axios.post(`${API_URL}/categories/update/${editingId}`, categoryData);
-        alert('Category updated successfully!');
+        toast.success('Category updated successfully!');
       } else {
         await axios.post(`${API_URL}/categories/add`, categoryData);
-        alert('Category added successfully!');
+        toast.success('Category added successfully!');
       }
 
       // Reset form and refresh list
@@ -79,7 +80,7 @@ const CategoryMaster = () => {
       fetchCategories();
       setActiveTab('list');
     } catch (err) {
-      alert('Error: ' + (err.response?.data?.message || err.message));
+      toast.error('Error: ' + (err.response?.data?.message || err.message));
       console.error('Error saving category:', err);
     }
   };
@@ -99,10 +100,10 @@ const CategoryMaster = () => {
     if (window.confirm('Are you sure you want to delete this category?')) {
       try {
         await axios.delete(`${API_URL}/categories/delete/${id}`);
-        alert('Category deleted successfully!');
+        toast.success('Category deleted successfully!');
         fetchCategories();
       } catch (err) {
-        alert('Error: ' + err.message);
+        toast.error('Error: ' + err.message);
         console.error('Error deleting category:', err);
       }
     }

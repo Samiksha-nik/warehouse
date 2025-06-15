@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 // import './LocationMaster.css';
 
 const API_URL = 'http://localhost:5000/api';
@@ -137,7 +138,7 @@ const LocationMaster = () => {
     // Basic validation
     if (!formData.locationName || !formData.locationCode || !formData.company || 
         !formData.country || !formData.state || !formData.city) {
-      alert('Please fill in all required fields.');
+      toast.error('Please fill in all required fields.');
       return;
     }
 
@@ -145,7 +146,7 @@ const LocationMaster = () => {
       axios.post(`${API_URL}/locations/update/${editingId}`, formData)
         .then(res => {
           console.log(res.data);
-          alert('Location updated successfully!');
+          toast.success('Location updated successfully!');
           setEditingId(null);
           setFormData({
             locationName: '',
@@ -167,13 +168,13 @@ const LocationMaster = () => {
         })
         .catch(err => {
           console.error('Error updating location:', err);
-          alert('Failed to update location.' + err.message);
+          toast.error('Failed to update location.' + err.message);
         });
     } else {
       axios.post(`${API_URL}/locations/add`, formData)
         .then(res => {
           console.log(res.data);
-          alert('Location added successfully!');
+          toast.success('Location added successfully!');
           setFormData({
             locationName: '',
             locationCode: '',
@@ -194,7 +195,7 @@ const LocationMaster = () => {
         })
         .catch(err => {
           console.error('Error saving location:', err);
-          alert('Failed to save location.' + err.message);
+          toast.error('Failed to save location.' + err.message);
         });
     }
   };
@@ -228,12 +229,12 @@ const LocationMaster = () => {
       axios.delete(`${API_URL}/locations/delete/${id}`)
         .then(res => {
           console.log(res.data);
-          alert('Location deleted successfully!');
+          toast.success('Location deleted successfully!');
           fetchLocations();
         })
         .catch(err => {
           console.error('Error deleting location:', err);
-          alert('Failed to delete location.' + err.message);
+          toast.error('Failed to delete location.' + err.message);
         });
     }
   };

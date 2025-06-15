@@ -3,6 +3,7 @@ import '../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaQrcode, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
 import tableStyles from '../../styles/TableStyles.module.css';
+import { toast } from 'react-toastify';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -112,7 +113,7 @@ const AssignInventory = () => {
       const matchingLabel = labelResponse.data[0]; // Assuming API returns an array, take the first match
 
       if (!matchingLabel) {
-        alert('This MUC number is not found in the Labels list. Please create it first.');
+        toast.error('This MUC number is not found in the Labels list. Please create it first.');
         lastCheckedLabel.current = value;
         setFormData(prevState => ({
           ...prevState,
@@ -161,7 +162,7 @@ const AssignInventory = () => {
         );
         
         if (isExactMatch) {
-          alert('This MUC number is already assigned. Please use a different MUC number.');
+          toast.error('This MUC number is already assigned. Please use a different MUC number.');
           setFormData(prevState => ({
             ...prevState,
             labelNumber: '',
@@ -185,7 +186,7 @@ const AssignInventory = () => {
 
     } catch (err) {
       console.error('Error checking MUC number:', err);
-      alert('Error checking MUC number. Please try again.');
+      toast.error('Error checking MUC number. Please try again.');
       setFormData(prevState => ({
         ...prevState,
         labelNumber: '',
@@ -210,23 +211,24 @@ const AssignInventory = () => {
     const file = e.target.files[0];
     if (file) {
       try {
-        const formData = new FormData();
-        formData.append('qrCode', file);
+        const formDataObj = new FormData();
+        formDataObj.append('barcode', file);
+        formDataObj.append('mucNumber', formData.labelNumber); // Use the state variable
 
-        console.log('Uploading QR code file:', file.name);
+        console.log('Uploading barcode file:', file.name);
 
-        const response = await fetch(`${API_URL}/labels/scan`, {
+        const response = await fetch(`${API_URL}/labels/scan-barcode`, {
           method: 'POST',
-          body: formData
+          body: formDataObj
         });
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to process QR code');
+          throw new Error(errorData.message || 'Failed to process barcode');
         }
 
         const data = await response.json();
-        console.log('QR code data received:', data);
+        console.log('Barcode data received:', data);
 
         if (data && data.labelDetails) {
           setFormData(prevState => ({
@@ -246,11 +248,11 @@ const AssignInventory = () => {
             }
           }));
         } else {
-          alert('No label details found in QR code');
+          toast.error('No label details found in barcode');
         }
       } catch (err) {
-        console.error('Error scanning QR code:', err);
-        alert('Error scanning QR code: ' + err.message);
+        console.error('Error scanning barcode:', err);
+        toast.error('Error scanning barcode: ' + err.message);
       }
     }
   };
@@ -267,21 +269,21 @@ const AssignInventory = () => {
     console.log('marketplace:', formData.marketplace);
 
     if (!formData.customerName || !formData.orderId || !formData.labelNumber || !formData.assignTo || !formData.marketplace) {
-      alert('Please fill all required fields.');
+      toast.error('Please fill all required fields.');
       return;
     }
 
     // Validate labelDetails (ensure product details are fetched)
     console.log('Validating labelDetails:', formData.labelDetails);
     if (!formData.labelDetails.productName || !formData.labelDetails.unit || !formData.labelDetails.grade || !formData.labelDetails.length || !formData.labelDetails.width || !formData.labelDetails.thickness || !formData.labelDetails.totalMm || !formData.labelDetails.quantity) {
-      alert('Please ensure product details are fetched by entering a valid MUC number.');
+      toast.error('Please ensure product details are fetched by entering a valid MUC number.');
       return;
     }
 
     try {
       setLoading(true);
       await axios.post(`${API_URL}/assignments`, formData);
-      alert('Assignment created successfully!');
+      toast.success('Assignment created successfully!');
       // Clear form after successful submission
       setFormData({
         date: new Date().toISOString().split('T')[0],
@@ -307,7 +309,7 @@ const AssignInventory = () => {
       setActiveTab('list');
     } catch (error) {
       console.error('Error saving assignment:', error);
-      alert('Error saving assignment: ' + (error.response?.data?.message || error.message));
+      toast.error('Error saving assignment: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
@@ -317,11 +319,11 @@ const AssignInventory = () => {
     if (window.confirm('Are you sure you want to delete this assignment?')) {
       try {
         await axios.delete(`${API_URL}/assignments/${id}`);
-        alert('Assignment deleted successfully!');
+        toast.success('Assignment deleted successfully!');
         fetchAssignments();
       } catch (error) {
         console.error('Error deleting assignment:', error);
-        alert(`Error deleting assignment: ${error.message}`);
+        toast.error(`Error deleting assignment: ${error.message}`);
       }
     }
   };
@@ -447,7 +449,7 @@ const AssignInventory = () => {
                       id="qrCodeUpload"
                     />
                     <label htmlFor="qrCodeUpload" className="btn-primary">
-                      Upload QR Code
+                      Upload Barcode
                     </label>
                   </div>
                 </div>

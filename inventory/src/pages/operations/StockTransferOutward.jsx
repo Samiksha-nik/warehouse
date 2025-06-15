@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { FaTrash, FaEdit } from 'react-icons/fa';
 import '../../styles/shared.css';
-import { toast } from 'react-hot-toast';
+import { toast } from 'react-toastify';
 import tableStyles from '../../styles/TableStyles.module.css';
 import styles from './StockTransfer.module.css';
 
@@ -114,7 +114,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
       // Check if this MUC number is already used in outward transfers
       const outwardResponse = await axios.get(`http://localhost:5000/api/stock-transfers-outward/check-muc/${mucNumber}`);
       if (outwardResponse.data.exists) {
-        setMessage({ text: 'This MUC number is already used in an outward transfer.', type: 'error' });
+        toast.error('This MUC number is already used in an outward transfer. Please enter a unique MUC number.');
         setDialogMessage('This MUC number is already used in an outward transfer. Please enter a unique MUC number.');
         setDialogOpen(true);
         setMucValid(false);
@@ -152,7 +152,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
           quantity: match.quantity || '',
           bundleNumber: match.bundleNumber || ''
         }));
-        setMessage({ text: 'Product details fetched from inward.', type: 'success' });
+        toast.success('Product details fetched from inward.');
         setMucValid(true);
       } else {
         handleNoMatch();
@@ -162,7 +162,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
         handleNoMatch();
       } else {
         console.error('Error fetching MUC details:', err);
-        setMessage({ text: 'Error fetching MUC details', type: 'error' });
+        toast.error('Error fetching MUC details');
         setMucValid(false);
       }
     }
@@ -182,7 +182,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
       quantity: '',
       bundleNumber: ''
     }));
-    setMessage({ text: 'There is no MUC number matched.', type: 'error' });
+    toast.error('There is no MUC number matched.');
     setDialogMessage('There is no MUC number matched.');
     setDialogOpen(true);
     setMucValid(false);

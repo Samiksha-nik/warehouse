@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../../../styles/shared.css';
 import { FaSave, FaTimes, FaEdit, FaTrash, FaPlusCircle, FaList } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -51,7 +52,7 @@ const HSNMaster = () => {
     try {
       // Basic validation
       if (!formData.hsnCode || !formData.sgst || !formData.cgst || !formData.igst || !formData.status) {
-        alert('Please fill in all required fields.');
+        toast.error('Please fill in all required fields.');
         return;
       }
 
@@ -66,10 +67,10 @@ const HSNMaster = () => {
 
       if (editingId) {
         await axios.post(`${API_URL}/hsn/update/${editingId}`, hsnData);
-        alert('HSN Code updated successfully!');
+        toast.success('HSN Code updated successfully!');
       } else {
         await axios.post(`${API_URL}/hsn/add`, hsnData);
-        alert('HSN Code added successfully!');
+        toast.success('HSN Code added successfully!');
       }
 
       // Reset form and refresh list
@@ -85,7 +86,7 @@ const HSNMaster = () => {
       fetchHsnCodes();
       setActiveTab('list');
     } catch (err) {
-      alert('Error: ' + (err.response?.data?.message || err.message));
+      toast.error('Error: ' + (err.response?.data?.message || err.message));
       console.error('Error saving HSN code:', err);
     }
   };
@@ -107,10 +108,10 @@ const HSNMaster = () => {
     if (window.confirm('Are you sure you want to delete this HSN code?')) {
       try {
         await axios.delete(`${API_URL}/hsn/delete/${id}`);
-        alert('HSN Code deleted successfully!');
+        toast.success('HSN Code deleted successfully!');
         fetchHsnCodes();
       } catch (err) {
-        alert('Error: ' + err.message);
+        toast.error('Error: ' + err.message);
         console.error('Error deleting HSN code:', err);
       }
     }

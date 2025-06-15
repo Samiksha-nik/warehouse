@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../../../styles/shared.css';
 import { FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -48,10 +49,10 @@ const UnitMaster = () => {
     try {
       if (editingId) {
         await axios.post(`${API_URL}/units/update/${editingId}`, formData);
-        alert('Unit updated successfully!');
+        toast.success('Unit updated successfully!');
       } else {
         await axios.post(`${API_URL}/units/add`, formData);
-        alert('Unit added successfully!');
+        toast.success('Unit added successfully!');
       }
       
       // Reset form and refresh list
@@ -64,7 +65,7 @@ const UnitMaster = () => {
       fetchUnits();
       setActiveTab('list');
     } catch (err) {
-      alert('Error: ' + (err.response?.data?.message || err.message));
+      toast.error('Error: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -82,10 +83,10 @@ const UnitMaster = () => {
     if (window.confirm('Are you sure you want to delete this unit?')) {
       try {
         await axios.delete(`${API_URL}/units/delete/${id}`);
-        alert('Unit deleted successfully!');
+        toast.success('Unit deleted successfully!');
         fetchUnits();
       } catch (err) {
-        alert('Error: ' + err.message);
+        toast.error('Error: ' + err.message);
       }
     }
   };

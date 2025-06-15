@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const Label = require('../models/Label');
+const StockTransferInward = require('../models/StockTransferInward');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const QRReader = require('qrcode-reader');
 const Jimp = require('jimp');
+const jsQR = require('jsqr');
 // You may need a QR code processing library, e.g., 'qrcode-reader' or similar
 
 // Set up multer for file uploads
@@ -136,6 +138,65 @@ router.get('/check-muc/:mucNumber', async (req, res) => {
     res.json({ exists: !!label });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// Barcode scanning endpoint
+router.post('/scan-barcode', upload.single('barcode'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No barcode image uploaded' });
+    }
+
+    // For now, we'll assume the barcode contains just the MUC number
+    // In a real implementation, you would use a barcode scanning library
+    const mucNumber = req.body.mucNumber;
+
+    if (!mucNumber) {
+      return res.status(400).json({ message: 'No MUC number provided' });
+    }
+
+    // Check if MUC exists in Labels collection
+    const label = await Label.findOne({ mucNumber });
+    if (!label) {
+      return res.status(400).json({ 
+        message: 'This MUC number is not found in the Labels list. Please create it first.' 
+      });
+    }
+
+    // Check if MUC exists in Inward collection
+    const inward = await StockTransferInward.findOne({ mucNumber });
+    if (!inward) {
+      return res.status(400).json({ 
+        message: 'This MUC number has not been inwarded yet. Please inward it first.' 
+      });
+    }
+
+    // Clean up the uploaded file
+    await fs.promises.unlink(req.file.path);
+
+    // Return the label details
+    res.json({
+      qrCode: mucNumber,
+      labelDetails: {
+        productName: label.productName || '',
+        unit: label.unit || '',
+        grade: label.gradeValue || '',
+        length: label.length || '',
+        width: label.width || '',
+        thickness: label.thickness || '',
+        totalMm: label.totalMM || '',
+        quantity: label.quantity || '',
+        bundleNumber: label.bundleNumber || ''
+      }
+    });
+  } catch (error) {
+    console.error('Barcode scanning error:', error);
+    if (req.file) {
+      // Clean up the uploaded file in case of error
+      await fs.promises.unlink(req.file.path).catch(console.error);
+    }
+    res.status(500).json({ message: error.message });
   }
 });
 

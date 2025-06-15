@@ -3,6 +3,7 @@ import axios from 'axios';
 import '../../styles/shared.css';
 import { FaTrash, FaEdit, FaQrcode } from 'react-icons/fa';
 import { debounce } from 'lodash';
+import { toast } from 'react-toastify';
 
 const getCurrentFinancialYear = () => {
   const now = new Date();
@@ -240,10 +241,10 @@ const Dispatch = () => {
     if (window.confirm('Are you sure you want to delete this dispatch?')) {
       try {
         await axios.delete(`http://localhost:5000/api/dispatch/${id}`);
-        alert('Dispatch deleted successfully!');
+        toast.success('Dispatch deleted successfully!');
         fetchDispatches();
       } catch (err) {
-        alert('Error deleting dispatch: ' + (err.response?.data?.message || err.message));
+        toast.error('Error deleting dispatch: ' + (err.response?.data?.message || err.message));
       }
     }
   };
@@ -385,7 +386,7 @@ const Dispatch = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      setMessage('Dispatch created successfully!');
+      toast.success('Dispatch created successfully!');
       setFormData({
         mucNumber: '',
         productName: '',
@@ -409,7 +410,7 @@ const Dispatch = () => {
       });
       fetchDispatches();
     } catch (err) {
-      setMessage(err.response?.data?.message || 'Error creating dispatch');
+      toast.error(err.response?.data?.message || 'Error creating dispatch');
     }
   };
 

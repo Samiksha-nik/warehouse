@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -83,7 +84,7 @@ const CityMaster = () => {
 
     // Basic client-side validation
     if (!formData.cityName || !formData.cityCode || !formData.state || !formData.country || !formData.status) {
-      alert('Please fill in all required fields (City Name, City Code, State, Country, Status).');
+      toast.error('Please fill in all required fields (City Name, City Code, State, Country, Status).');
       return;
     }
 
@@ -91,7 +92,7 @@ const CityMaster = () => {
       axios.post(`${API_URL}/cities/update/${editingId}`, formData)
         .then(res => {
           console.log(res.data);
-          alert('City updated successfully!');
+          toast.success('City updated successfully!');
           setEditingId(null);
           setFormData({
             cityName: '',
@@ -105,13 +106,13 @@ const CityMaster = () => {
         })
         .catch(err => {
           console.error('Error updating city:', err);
-          alert('Failed to update city.' + err.message);
+          toast.error('Failed to update city.' + err.message);
         });
     } else {
       axios.post(`${API_URL}/cities/add`, formData)
         .then(res => {
           console.log(res.data);
-          alert('City added successfully!');
+          toast.success('City added successfully!');
           setFormData({
             cityName: '',
             cityCode: '',
@@ -124,7 +125,7 @@ const CityMaster = () => {
         })
         .catch(err => {
           console.error('Error saving city:', err);
-          alert('Failed to save city.' + err.message);
+          toast.error('Failed to save city.' + err.message);
         });
     }
   };
@@ -148,12 +149,12 @@ const CityMaster = () => {
       axios.delete(`${API_URL}/cities/delete/${id}`)
         .then(res => {
           console.log(res.data);
-          alert('City deleted successfully!');
+          toast.success('City deleted successfully!');
           fetchCities();
         })
         .catch(err => {
           console.error('Error deleting city:', err);
-          alert('Failed to delete city.' + err.message);
+          toast.error('Failed to delete city.' + err.message);
         });
     }
   };

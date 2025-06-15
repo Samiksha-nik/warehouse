@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../../../../styles/shared.css';
 import { FaUpload, FaPlus, FaSave, FaLeaf, FaTimes, FaList, FaPlusCircle, FaEdit, FaTrash } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -87,7 +88,7 @@ const ProductMaster = () => {
       }));
       setNewDepartment({ department: '', sequence: '' });
     } else {
-      alert('Please select a department and enter a sequence.');
+      toast.error('Please select a department and enter a sequence.');
     }
   };
 
@@ -103,7 +104,7 @@ const ProductMaster = () => {
     try {
       // Basic validation
       if (!formData.productName || !formData.category || !formData.hsnCode || !formData.status) {
-        alert('Please fill in all required fields (Product Name, Category, HSN Code, and Status).');
+        toast.error('Please fill in all required fields (Product Name, Category, HSN Code, and Status).');
         return;
       }
 
@@ -118,10 +119,10 @@ const ProductMaster = () => {
 
       if (editingId) {
         await axios.post(`${API_URL}/products/update/${editingId}`, productData);
-        alert('Product updated successfully!');
+        toast.success('Product updated successfully!');
       } else {
         await axios.post(`${API_URL}/products/add`, productData);
-        alert('Product added successfully!');
+        toast.success('Product added successfully!');
       }
 
       // Reset form and refresh list
@@ -137,7 +138,7 @@ const ProductMaster = () => {
       fetchProducts();
       setActiveTab('list');
     } catch (err) {
-      alert('Error: ' + (err.response?.data?.message || err.message));
+      toast.error('Error: ' + (err.response?.data?.message || err.message));
       console.error('Error saving product:', err);
     }
   };
@@ -159,10 +160,10 @@ const ProductMaster = () => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
         await axios.delete(`${API_URL}/products/delete/${id}`);
-        alert('Product deleted successfully!');
+        toast.success('Product deleted successfully!');
         fetchProducts();
       } catch (err) {
-        alert('Error: ' + err.message);
+        toast.error('Error: ' + err.message);
         console.error('Error deleting product:', err);
       }
     }

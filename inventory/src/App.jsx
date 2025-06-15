@@ -38,11 +38,11 @@ import ProductMasterOnline from './pages/masters/inventory-management/product-ma
 import RawMaterialMaster from './pages/masters/inventory-management/product-management/RawMaterialMaster';
 
 // Operations
-import LabelGenerator from './pages/operations/LabelGenerator';
 import AssignInventory from './pages/operations/AssignInventory';
 import StockTransfer from './pages/operations/StockTransfer';
 import Dispatch from './pages/operations/Dispatch';
 import ReturnRefund from './pages/operations/ReturnRefund';
+import Label from './pages/operations/Label';
 
 // Reports
 import StockReport from './pages/reports/stockReport';
@@ -84,6 +84,22 @@ function App() {
           />
 
           {/* Other Protected Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <DashboardOverview />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/masters/company-location/country"
             element={
@@ -341,22 +357,6 @@ function App() {
             }
           />
           <Route
-            path="/label-generator"
-            element={
-              <ProtectedRoute>
-                <>
-                  <Header />
-                  <div className="app-layout">
-                    <Sidebar />
-                    <main className="main-content">
-                      <LabelGenerator />
-                    </main>
-                  </div>
-                </>
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/assign-inventory"
             element={
               <ProtectedRoute>
@@ -405,7 +405,7 @@ function App() {
             }
           />
           <Route
-            path="/operations/return-refund"
+            path="/return-refund"
             element={
               <ProtectedRoute>
                 <>
@@ -436,8 +436,24 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/label"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <Label />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
           </Routes>
-        <ToastContainer position="top-right" autoClose={3000} />
+        <ToastContainer position="top-center" autoClose={3000} />
       </div>
     </BrowserRouter>
   );

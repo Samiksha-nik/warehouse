@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../../../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -101,7 +102,7 @@ const ProductMasterOnline = () => {
     try {
       // Basic validation
       if (!formData.skuCode || !formData.productId || !formData.category || !formData.productName || !formData.grade || !formData.thickness || !formData.length || !formData.width || !formData.weight || !formData.hsnCode || !formData.mrp) {
-        alert('Please fill in all required fields.');
+        toast.error('Please fill in all required fields.');
         return;
       }
 
@@ -123,12 +124,12 @@ const ProductMasterOnline = () => {
 
       if (editingId) {
         await axios.put(`${API_URL}/products-online/${editingId}`, productOnlineData);
-        alert('Product online updated successfully!');
+        toast.success('Product online updated successfully!');
       } else {
         try {
           const response = await axios.post(`${API_URL}/products-online`, productOnlineData);
           console.log('Server response:', response.data);
-          alert('Product online added successfully!');
+          toast.success('Product online added successfully!');
           // Reset form and refresh list
           setFormData({
             skuCode: '',
@@ -148,12 +149,12 @@ const ProductMasterOnline = () => {
           setActiveTab('list');
         } catch (err) {
           console.error('Error saving product:', err);
-          alert('Failed to save product: ' + err.message);
+          toast.error('Failed to save product: ' + err.message);
         }
       }
     } catch (err) {
       console.error('Error:', err);
-      alert('An error occurred: ' + err.message);
+      toast.error('An error occurred: ' + err.message);
     }
   };
 
@@ -179,11 +180,11 @@ const ProductMasterOnline = () => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
         await axios.delete(`${API_URL}/products-online/${id}`);
-        alert('Product deleted successfully!');
+        toast.success('Product deleted successfully!');
         fetchProductsOnline();
       } catch (err) {
         console.error('Error deleting product:', err);
-        alert('Failed to delete product: ' + err.message);
+        toast.error('Failed to delete product: ' + err.message);
       }
     }
   };

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../../../styles/shared.css';
 import { FaSave, FaTimes, FaEdit, FaTrash, FaPlusCircle, FaList } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -49,7 +50,7 @@ const GradeMaster = () => {
     try {
       // Basic validation
       if (!formData.gradeName || !formData.gradeValue) {
-        alert('Please fill in required fields (Grade Name and Grade Value).');
+        toast.error('Please fill in required fields (Grade Name and Grade Value).');
         return;
       }
 
@@ -62,10 +63,10 @@ const GradeMaster = () => {
 
       if (editingId) {
         await axios.post(`${API_URL}/grades/update/${editingId}`, gradeData);
-        alert('Grade updated successfully!');
+        toast.success('Grade updated successfully!');
       } else {
         await axios.post(`${API_URL}/grades/add`, gradeData);
-        alert('Grade added successfully!');
+        toast.success('Grade added successfully!');
       }
 
       // Reset form and refresh list
@@ -79,7 +80,7 @@ const GradeMaster = () => {
       fetchGrades();
       setActiveTab('list');
     } catch (err) {
-       alert('Error: ' + (err.response?.data?.message || err.message));
+       toast.error('Error: ' + (err.response?.data?.message || err.message));
        console.error('Error saving grade:', err);
     }
   };
@@ -99,10 +100,10 @@ const GradeMaster = () => {
     if (window.confirm('Are you sure you want to delete this grade?')) {
       try {
         await axios.delete(`${API_URL}/grades/delete/${id}`);
-        alert('Grade deleted successfully!');
+        toast.success('Grade deleted successfully!');
         fetchGrades();
       } catch (err) {
-        alert('Error: ' + err.message);
+        toast.error('Error: ' + err.message);
         console.error('Error deleting grade:', err);
       }
     }

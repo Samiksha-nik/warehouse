@@ -7,7 +7,7 @@ import {
   FaUserFriends, FaUserTie, FaTruckLoading,
   FaBoxOpen, FaLayerGroup,
   FaRuler, FaStar, FaMedal, FaBarcode, FaUndo,
-  FaAngleDoubleLeft, FaAngleDoubleRight, FaChartLine
+  FaAngleDoubleLeft, FaAngleDoubleRight, FaChartLine, FaTag, FaTachometerAlt
 } from 'react-icons/fa';
 import './Sidebar.css';
 
@@ -104,12 +104,12 @@ const Sidebar = () => {
         {/* Main Navigation */}
         <div className="main-nav-section">
           {!collapsed && <h3 className="master-section-title">Operations</h3>}
-          <Link to="/" className={`nav-item ${isActive('/') ? 'active' : ''}`}><FaHome /> {!collapsed && <span>Dashboard</span>}</Link>
-          <Link to="/label-generator" className={`nav-item ${isActive('/label-generator') ? 'active' : ''}`}><FaTags /> {!collapsed && <span>Manual Generate Label</span>}</Link>
-          <Link to="/assign-inventory" className={`nav-item ${isActive('/assign-inventory') ? 'active' : ''}`}><FaBox /> {!collapsed && <span>Assign Inventory</span>}</Link>
-          <Link to="/stock-transfer" className={`nav-item ${isActive('/stock-transfer') ? 'active' : ''}`}><FaExchangeAlt /> {!collapsed && <span>Stock Transfer</span>}</Link>
-          <Link to="/dispatch" className={`nav-item ${isActive('/dispatch') ? 'active' : ''}`}><FaTruck /> {!collapsed && <span>Dispatch</span>}</Link>
-          <Link to="/operations/return-refund" className={`nav-item ${isActive('/operations/return-refund') ? 'active' : ''}`}><FaUndo /> {!collapsed && <span>Return & Refund</span>}</Link>
+          <Link to="/dashboard" className={`nav-item ${isActive('/dashboard') ? 'active' : ''}`}><FaTachometerAlt className="nav-icon" /> {!collapsed && <span>Dashboard</span>}</Link>
+          <Link to="/label" className={`nav-item ${isActive('/label') ? 'active' : ''}`}><FaTags className="nav-icon" /> {!collapsed && <span>Label</span>}</Link>
+          <Link to="/assign-inventory" className={`nav-item ${isActive('/assign-inventory') ? 'active' : ''}`}><FaBox className="nav-icon" /> {!collapsed && <span>Assign Inventory</span>}</Link>
+          <Link to="/stock-transfer" className={`nav-item ${isActive('/stock-transfer') ? 'active' : ''}`}><FaExchangeAlt className="nav-icon" /> {!collapsed && <span>Stock Transfer</span>}</Link>
+          <Link to="/dispatch" className={`nav-item ${isActive('/dispatch') ? 'active' : ''}`}><FaTruck className="nav-icon" /> {!collapsed && <span>Dispatch</span>}</Link>
+          <Link to="/return-refund" className={`nav-item ${isActive('/return-refund') ? 'active' : ''}`}><FaUndo className="nav-icon" /> {!collapsed && <span>Return & Refund</span>}</Link>
         </div>
         
         {/* Reports Section */}

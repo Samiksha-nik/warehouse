@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -69,7 +70,7 @@ const StateMaster = () => {
 
     // Basic validation
     if (!formData.stateName || !formData.stateCode || !formData.country || !formData.status) {
-      alert('Please fill in all required fields.');
+      toast.error('Please fill in all required fields.');
       return;
     }
 
@@ -77,7 +78,7 @@ const StateMaster = () => {
       axios.post(`${API_URL}/states/update/${editingId}`, formData)
         .then(res => {
           console.log(res.data);
-          alert('State updated successfully!');
+          toast.success('State updated successfully!');
           setEditingId(null);
           setFormData({
             stateName: '',
@@ -90,13 +91,13 @@ const StateMaster = () => {
         })
         .catch(err => {
           console.error('Error updating state:', err);
-          alert('Failed to update state.' + err.message);
+          toast.error('Failed to update state.' + err.message);
         });
     } else {
       axios.post(`${API_URL}/states/add`, formData)
         .then(res => {
           console.log(res.data);
-          alert('State added successfully!');
+          toast.success('State added successfully!');
           setFormData({
             stateName: '',
             stateCode: '',
@@ -108,7 +109,7 @@ const StateMaster = () => {
         })
         .catch(err => {
           console.error('Error saving state:', err);
-          alert('Failed to save state.' + err.message);
+          toast.error('Failed to save state.' + err.message);
         });
     }
   };
@@ -130,12 +131,12 @@ const StateMaster = () => {
       axios.delete(`${API_URL}/states/delete/${id}`)
         .then(res => {
           console.log(res.data);
-          alert('State deleted successfully!');
+          toast.success('State deleted successfully!');
           fetchStates();
         })
         .catch(err => {
           console.error('Error deleting state:', err);
-          alert('Failed to delete state.' + err.message);
+          toast.error('Failed to delete state.' + err.message);
         });
     }
   };

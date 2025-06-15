@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../../../styles/shared.css';
 import { FaSave, FaTimes, FaPlus, FaEdit, FaTrash, FaPlusCircle, FaList } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -401,7 +402,7 @@ const SupplierMaster = () => {
             'Content-Type': 'application/json'
           }
         });
-        alert('Supplier updated successfully!');
+        toast.success('Supplier updated successfully!');
       } else {
         // Create new supplier
         response = await axios.post(`${API_URL}/suppliers/add`, supplierData, {
@@ -409,7 +410,7 @@ const SupplierMaster = () => {
             'Content-Type': 'application/json'
           }
         });
-        alert('Supplier added successfully!');
+        toast.success('Supplier added successfully!');
       }
       
       if (response.data) {
@@ -529,7 +530,7 @@ const SupplierMaster = () => {
         setLoading(true);
         setError(null);
         await axios.delete(`${API_URL}/suppliers/delete/${id}`);
-        alert('Supplier deleted successfully!');
+        toast.success('Supplier deleted successfully!');
         fetchSuppliers(); // Refresh the list
       } catch (err) {
         console.error('Error deleting supplier:', err);

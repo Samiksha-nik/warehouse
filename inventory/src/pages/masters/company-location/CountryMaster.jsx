@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -55,7 +56,7 @@ const CountryMaster = () => {
 
     // Basic client-side validation
     if (!formData.countryName || !formData.countryCode || !formData.status) {
-      alert('Please fill in all required fields (Country Name, Country Code, Status).');
+      toast.error('Please fill in all required fields (Country Name, Country Code, Status).');
       return;
     }
 
@@ -63,7 +64,7 @@ const CountryMaster = () => {
       axios.post(`${API_URL}/countries/update/${editingId}`, formData)
         .then(res => {
           console.log(res.data);
-          alert('Country updated successfully!');
+          toast.success('Country updated successfully!');
           setEditingId(null);
           setFormData({
             countryName: '',
@@ -75,13 +76,13 @@ const CountryMaster = () => {
         })
         .catch(err => {
           console.error('Error updating country:', err);
-          alert('Failed to update country.' + err.message);
+          toast.error('Failed to update country.' + err.message);
         });
     } else {
       axios.post(`${API_URL}/countries/add`, formData)
         .then(res => {
           console.log(res.data);
-          alert('Country added successfully!');
+          toast.success('Country added successfully!');
           setFormData({
             countryName: '',
             countryCode: '',
@@ -92,7 +93,7 @@ const CountryMaster = () => {
         })
         .catch(err => {
           console.error('Error saving country:', err);
-          alert('Failed to save country.' + err.message);
+          toast.error('Failed to save country.' + err.message);
         });
     }
   };
@@ -113,12 +114,12 @@ const CountryMaster = () => {
       axios.delete(`${API_URL}/countries/delete/${id}`)
         .then(res => {
           console.log(res.data);
-          alert('Country deleted successfully!');
+          toast.success('Country deleted successfully!');
           fetchCountries();
         })
         .catch(err => {
           console.error('Error deleting country:', err);
-          alert('Failed to delete country.' + err.message);
+          toast.error('Failed to delete country.' + err.message);
         });
     }
   };

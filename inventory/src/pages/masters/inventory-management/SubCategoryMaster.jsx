@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../../../styles/shared.css';
 import { FaSave, FaTimes, FaEdit, FaTrash, FaPlusCircle, FaList } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -60,7 +61,7 @@ const SubCategoryMaster = () => {
     try {
       // Basic validation
       if (!formData.subCategoryName || !formData.category || !formData.status) {
-        alert('Please fill in all required fields (Sub Category Name, Category, and Status).');
+        toast.error('Please fill in all required fields (Sub Category Name, Category, and Status).');
         return;
       }
 
@@ -73,10 +74,10 @@ const SubCategoryMaster = () => {
 
       if (editingId) {
         await axios.post(`${API_URL}/sub-categories/update/${editingId}`, subCategoryData);
-        alert('Sub Category updated successfully!');
+        toast.success('Sub Category updated successfully!');
       } else {
         await axios.post(`${API_URL}/sub-categories/add`, subCategoryData);
-        alert('Sub Category added successfully!');
+        toast.success('Sub Category added successfully!');
       }
 
       // Reset form and refresh list
@@ -90,7 +91,7 @@ const SubCategoryMaster = () => {
       fetchSubCategories();
       setActiveTab('list');
     } catch (err) {
-      alert('Error: ' + (err.response?.data?.message || err.message));
+      toast.error('Error: ' + (err.response?.data?.message || err.message));
       console.error('Error saving sub-category:', err);
     }
   };
@@ -110,10 +111,10 @@ const SubCategoryMaster = () => {
     if (window.confirm('Are you sure you want to delete this sub category?')) {
       try {
         await axios.delete(`${API_URL}/sub-categories/delete/${id}`);
-        alert('Sub Category deleted successfully!');
+        toast.success('Sub Category deleted successfully!');
         fetchSubCategories();
       } catch (err) {
-        alert('Error: ' + err.message);
+        toast.error('Error: ' + err.message);
         console.error('Error deleting sub-category:', err);
       }
     }

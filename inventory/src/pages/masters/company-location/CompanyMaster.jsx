@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../../../styles/shared.css';
 import { FaPlusCircle, FaList, FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const CompanyMaster = () => {
   const [activeTab, setActiveTab] = useState('add');
@@ -106,7 +107,7 @@ const CompanyMaster = () => {
     // Basic validation
     if (!formData.companyCode || !formData.companyName || !formData.addressLine1 || 
         !formData.country || !formData.state || !formData.city || !formData.pincode) {
-      alert('Please fill in all required fields.');
+      toast.error('Please fill in all required fields.');
       return;
     }
 
@@ -114,7 +115,7 @@ const CompanyMaster = () => {
       axios.post(`http://localhost:5000/api/companies/update/${editingId}`, formData)
         .then(res => {
           console.log(res.data);
-          alert('Company updated successfully!');
+          toast.success('Company updated successfully!');
           setEditingId(null);
           setFormData({
             companyCode: '',
@@ -139,13 +140,13 @@ const CompanyMaster = () => {
         })
         .catch(err => {
           console.error('Error updating company:', err);
-          alert('Failed to update company.' + err.message);
+          toast.error('Failed to update company.' + err.message);
         });
     } else {
       axios.post('http://localhost:5000/api/companies/add', formData)
         .then(res => {
           console.log(res.data);
-          alert('Company added successfully!');
+          toast.success('Company added successfully!');
           setFormData({
             companyCode: '',
             companyName: '',
@@ -169,7 +170,7 @@ const CompanyMaster = () => {
         })
         .catch(err => {
           console.error('Error saving company:', err);
-          alert('Failed to save company.' + err.message);
+          toast.error('Failed to save company.' + err.message);
         });
     }
   };
@@ -203,12 +204,12 @@ const CompanyMaster = () => {
       axios.delete(`http://localhost:5000/api/companies/delete/${id}`)
         .then(res => {
           console.log(res.data);
-          alert('Company deleted successfully!');
+          toast.success('Company deleted successfully!');
           fetchCompanies();
         })
         .catch(err => {
           console.error('Error deleting company:', err);
-          alert('Failed to delete company.' + err.message);
+          toast.error('Failed to delete company.' + err.message);
         });
     }
   };

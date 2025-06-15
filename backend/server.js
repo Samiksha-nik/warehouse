@@ -93,6 +93,7 @@ const suppliersRouter = require('./routes/suppliers');
 const qrRoutes = require('./routes/qrRoutes');
 const stockReportRouter = require('./routes/stockReport');
 const authRouter = require('./routes/auth');
+const pdfLabelsRouter = require('./routes/pdfLabels');
 
 // Use routes with consistent /api prefix
 app.use('/api/countries', countriesRouter);
@@ -121,6 +122,7 @@ app.use('/api/suppliers', suppliersRouter);
 app.use('/api/qr', qrRoutes);
 app.use('/api/stock-report', stockReportRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/pdf-labels', pdfLabelsRouter);
 
 // Basic route
 app.get('/', (req, res) => {

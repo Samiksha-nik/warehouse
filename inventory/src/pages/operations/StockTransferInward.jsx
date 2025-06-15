@@ -4,6 +4,7 @@ import { FaTrash } from 'react-icons/fa';
 import '../../styles/shared.css';
 import styles from './StockTransfer.module.css';
 import tableStyles from '../../styles/TableStyles.module.css';
+import { toast } from 'react-toastify';
 
 const generateInwardNumber = (lastNumber = 0) => {
   // Example: BB/25-26/IN/001
@@ -251,7 +252,7 @@ const StockTransferInward = ({ showForm, showList }) => {
       });
 
       if (response.status === 201) {
-        setMessage({ text: 'Transfer saved successfully!', type: 'success' });
+        toast.success('Transfer saved successfully!');
         // Reset form and fetch updated data
         fetchTransfers();
         // Get the current highest inward number
@@ -304,10 +305,7 @@ const StockTransferInward = ({ showForm, showList }) => {
       console.error('Error saving transfer:', err);
       console.error('Error response:', err.response?.data);
       const errorMessage = err.response?.data?.message || err.message;
-      setMessage({ 
-        text: `Error saving transfer: ${errorMessage}. Please check all required fields are filled correctly.`, 
-        type: 'error' 
-      });
+      toast.error(`Error saving transfer: ${errorMessage}. Please check all required fields are filled correctly.`);
     }
   };
 
@@ -315,7 +313,7 @@ const StockTransferInward = ({ showForm, showList }) => {
     if (window.confirm('Are you sure you want to delete this transfer?')) {
       try {
         await axios.delete(`http://localhost:5000/api/stock-transfers-inward/${id}`);
-        setMessage({ text: 'Transfer deleted successfully!', type: 'success' });
+        toast.success('Transfer deleted successfully!');
         fetchTransfers();
         
         // Clear success message after 3 seconds
@@ -324,7 +322,7 @@ const StockTransferInward = ({ showForm, showList }) => {
         }, 3000);
       } catch (err) {
         console.error('Error deleting transfer:', err);
-        setMessage({ text: 'Error deleting transfer', type: 'error' });
+        toast.error('Error deleting transfer');
       }
     }
   };

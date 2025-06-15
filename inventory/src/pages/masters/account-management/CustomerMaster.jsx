@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../../../styles/shared.css';
 import { FaSave, FaTimes, FaPlus, FaEdit, FaTrash, FaPlusCircle, FaList } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 // import './CustomerMaster.css'; // Assuming a CSS file might be needed
 
 const API_URL = 'http://localhost:5000/api';
@@ -168,7 +169,7 @@ const CustomerMaster = () => {
     try {
       // Validate required customer fields
       if (!formData.customerCode || !formData.customerName) {
-        alert('Please fill in all required fields (Customer Code and Customer Name).');
+        toast.error('Please fill in all required fields (Customer Code and Customer Name).');
         return;
       }
 
@@ -196,7 +197,7 @@ const CustomerMaster = () => {
           .map(([_, label]) => label);
 
         if (missingFields.length > 0) {
-          alert(`Please fill in all required Billing Address fields: ${missingFields.join(', ')}`);
+          toast.error(`Please fill in all required Billing Address fields: ${missingFields.join(', ')}`);
           return;
         }
 
@@ -227,7 +228,7 @@ const CustomerMaster = () => {
           }
         } catch (addressErr) {
           console.error('Error saving address:', addressErr);
-          alert('Error saving billing address: ' + (addressErr.response?.data?.message || addressErr.message));
+          toast.error('Error saving billing address: ' + (addressErr.response?.data?.message || addressErr.message));
           return;
         }
       } else if (formData.billingAddress._id) {
@@ -267,10 +268,10 @@ const CustomerMaster = () => {
 
       if (editingId) {
         await axios.post(`${API_URL}/customers/update/${editingId}`, customerData);
-        alert('Customer updated successfully!');
+        toast.success('Customer updated successfully!');
       } else {
         await axios.post(`${API_URL}/customers/add`, customerData);
-        alert('Customer added successfully!');
+        toast.success('Customer added successfully!');
       }
 
       fetchCustomers();
@@ -320,9 +321,9 @@ const CustomerMaster = () => {
       setActiveTab('list'); // Switch to list view after saving
     } catch (err) {
       if (err.response?.data?.includes('duplicate key error')) {
-        alert('Error: Customer Code already exists. Please use a different code.');
+        toast.error('Error: Customer Code already exists. Please use a different code.');
       } else {
-        alert('Error: ' + (err.response?.data || err.message));
+        toast.error('Error: ' + (err.response?.data || err.message));
       }
       console.error('Error saving customer:', err);
     }
@@ -399,10 +400,10 @@ const CustomerMaster = () => {
            // The Customer document will still be deleted below.
         }
         await axios.delete(`${API_URL}/customers/delete/${id}`);
-        alert('Customer deleted successfully!');
+        toast.success('Customer deleted successfully!');
         fetchCustomers();
       } catch (err) {
-        alert('Error: ' + err.message);
+        toast.error('Error: ' + err.message);
         console.error('Error deleting customer:', err);
       }
     }
