@@ -3,6 +3,34 @@ const router = express.Router();
 const Inventory = require('../models/Inventory');
 const InventoryAssignment = require('../models/InventoryAssignment');
 const mongoose = require('mongoose');
+const nodemailer = require('nodemailer');
+
+// Email setup
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.ALERT_EMAIL_USER || 'your_gmail@gmail.com',
+    pass: process.env.ALERT_EMAIL_PASS || 'your_gmail_app_password',
+  },
+});
+const ALERT_RECIPIENT = 'nikamsamiksha43@gmail.com';
+
+async function sendLowStockEmailAlert(items) {
+  if (!items || items.length === 0) return;
+  const html = `
+    <h2>Low Stock Alert</h2>
+    <p>The following products are below their stock threshold:</p>
+    <ul>
+      ${items.map(item => `<li><b>${item.productName}</b> (Current: ${item.quantity}, Threshold: ${item.threshold})</li>`).join('')}
+    </ul>
+  `;
+  await transporter.sendMail({
+    from: process.env.ALERT_EMAIL_USER || 'your_gmail@gmail.com',
+    to: ALERT_RECIPIENT,
+    subject: 'Low Stock Alert',
+    html,
+  });
+}
 
 // Get all inventory items
 router.get('/', async (req, res) => {
@@ -195,6 +223,27 @@ router.delete('/assign/delete/:id', async (req, res) => {
       message: 'Error deleting inventory assignment',
       error: err.message 
     });
+  }
+});
+
+// Get low stock items
+router.get('/low-stock', async (req, res) => {
+  try {
+    const lowStockItems = await Inventory.find({
+      $expr: {
+        $lt: ['$quantity', '$threshold']
+      }
+    }).sort({ quantity: 1 });
+
+    // DEMO: Send email if there are low stock items (in real use, call after stock update)
+    if (lowStockItems.length > 0) {
+      await sendLowStockEmailAlert(lowStockItems);
+    }
+
+    res.json(lowStockItems);
+  } catch (error) {
+    console.error('Error fetching low stock items:', error);
+    res.status(500).json({ message: 'Error fetching low stock items' });
   }
 });
 

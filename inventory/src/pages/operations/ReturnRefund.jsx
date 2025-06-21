@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FaPlusCircle, FaList, FaTimes, FaUndo, FaMoneyBillWave, FaImage, FaEdit, FaTrash } from 'react-icons/fa';
+import React, { useState, useEffect, useRef } from 'react';
+import { FaPlusCircle, FaList, FaTimes, FaUndo, FaMoneyBillWave, FaImage, FaEdit, FaTrash, FaCamera } from 'react-icons/fa';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import './ReturnRefund.css';
@@ -34,11 +34,56 @@ const ReturnRefund = () => {
   });
   const [editingId, setEditingId] = useState(null);
 
+  const [showCamera, setShowCamera] = useState(false);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+
   useEffect(() => {
     fetchReturns();
     fetchLabels();
     fetchCustomers();
   }, []);
+
+  // Effect to handle camera stream
+  useEffect(() => {
+    if (showCamera) {
+      const enableStream = async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: 'environment',
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          });
+          streamRef.current = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        } catch (err) {
+          console.error("Error accessing camera:", err);
+          toast.error('Could not access the camera. Please check permissions.');
+          setShowCamera(false);
+        }
+      };
+      enableStream();
+    } else {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    }
+    
+    // Cleanup stream on component unmount
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [showCamera]);
 
   const fetchLabels = async () => {
     try {
@@ -134,6 +179,8 @@ const ReturnRefund = () => {
         remarks: ''
       });
       fetchReturns();
+      setCapturedImage(null);
+      setShowCamera(false);
     } catch (error) {
       console.error('Error submitting return:', error);
       toast.error(error.response?.data?.message || 'Failed to submit request');
@@ -152,7 +199,10 @@ const ReturnRefund = () => {
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    setFormData(prev => ({ ...prev, productPhoto: file }));
+    if (file) {
+        setFormData(prev => ({ ...prev, productPhoto: file }));
+        setCapturedImage(URL.createObjectURL(file));
+    }
   };
 
   const handleLabelChange = (e) => {
@@ -325,6 +375,45 @@ const ReturnRefund = () => {
     }
   };
 
+  // --- Camera Control Functions ---
+  const handleTakePhotoClick = () => {
+    setShowCamera(true);
+  };
+
+  const handleCloseCamera = () => {
+    setShowCamera(false);
+  };
+  
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `product-photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
+          setFormData(prev => ({ ...prev, productPhoto: file }));
+          setCapturedImage(URL.createObjectURL(blob));
+          handleCloseCamera();
+          toast.success('Photo captured successfully!');
+        }
+      }, 'image/jpeg', 0.8);
+    }
+  };
+
+  const removePhoto = () => {
+    setFormData(prev => ({ ...prev, productPhoto: null }));
+    setCapturedImage(null);
+    if (capturedImage) {
+      URL.revokeObjectURL(capturedImage);
+    }
+  };
+
   return (
     <div className="container">
       <h1>Cancel & Return Management</h1>
@@ -429,6 +518,35 @@ const ReturnRefund = () => {
               />
             </div>
 
+            <div className="form-group product-photo">
+              <label>Product Photo</label>
+              <div className="photo-actions">
+                  {!capturedImage ? (
+                      <button type="button" onClick={handleTakePhotoClick} className="btn-secondary">
+                          <FaCamera /> Take Photo
+                      </button>
+                  ) : (
+                      <div className="photo-preview">
+                          <img src={capturedImage} alt="Product" />
+                          <button type="button" onClick={removePhoto} className="remove-photo-btn"><FaTimes /></button>
+                      </div>
+                  )}
+              </div>
+            </div>
+
+            {showCamera && (
+              <div className="camera-modal">
+                  <div className="camera-container">
+                      <video ref={videoRef} autoPlay playsInline />
+                      <canvas ref={canvasRef} style={{ display: 'none' }} />
+                      <div className="camera-controls">
+                          <button type="button" onClick={capturePhoto} className="btn-primary"><FaCamera /> Capture</button>
+                          <button type="button" onClick={handleCloseCamera} className="btn-secondary"><FaTimes /> Close</button>
+                      </div>
+                  </div>
+              </div>
+            )}
+
             <div className="form-group">
               <label>Remarks</label>
               <textarea
@@ -436,20 +554,6 @@ const ReturnRefund = () => {
                 value={formData.remarks}
                 onChange={handleInputChange}
               />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="productPhoto">Product Photo (JPG/PNG only)</label>
-              <input
-                type="file"
-                id="productPhoto"
-                name="productPhoto"
-                onChange={handleFileChange}
-                accept=".jpg,.jpeg,.png"
-                required
-                className="form-control"
-              />
-              <small className="text-muted">Only JPG and PNG files are allowed</small>
             </div>
 
             <button type="submit" className="btn-primary" disabled={loading}>

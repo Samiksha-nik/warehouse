@@ -2,6 +2,8 @@
   "dependencies": {
     "jimp": "^1.6.0",
     "multer": "^2.0.0",
+    "node-cron": "^4.1.0",
+    "nodemailer": "^7.0.3",
     "qrcode-reader": "^1.0.4",
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.6.1"

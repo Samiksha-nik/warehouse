@@ -47,6 +47,7 @@ body, .main-content {
   font-size: 14px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
@@ -66,6 +67,27 @@ body, .main-content {
 
 .btn-secondary:hover {
   background: #e5e7eb;
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.3rem 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 35px;
+  margin-top: 10px;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
 }
 
 .table-container {
@@ -117,9 +139,9 @@ body, .main-content {
   font-size: 16px;
 }
 
-.btn-icon:hover {
+/* .btn-icon:hover {
   color: #1d4ed8;
-}
+} */
 
 .error-message {
   color: #dc2626;
@@ -163,4 +185,176 @@ body, .main-content {
     flex: 1;
     min-width: 200px;
   }
+}
+
+.label-tabs-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 24px;
+  justify-content: center;
+}
+
+.tab-btn {
+  border-radius: 6px 6px 0 0;
+  background: #f3f4f6;
+  color: #2563eb;
+  border: 1.5px solid #e5e7eb;
+  border-bottom: none;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+
+.tab-btn:not(.active):hover {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: #1d4ed8;
+}
+
+.tab-btn.active {
+  background: #2563eb;
+  color: #fff;
+  border-bottom: 2.5px solid #2563eb;
+  z-index: 2;
+}
+
+.enhanced-upload {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 24px;
+}
+
+.pdf-upload-label {
+  font-weight: 500;
+  color: #333;
+  margin-right: 8px;
+}
+
+.custom-file-input-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.custom-file-input {
+  opacity: 0;
+  width: 180px;
+  height: 40px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.custom-file-label {
+  display: inline-block;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.65rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  min-width: 180px;
+  text-align: left;
+}
+
+.custom-file-input:focus + .custom-file-label,
+.custom-file-label:hover {
+  background: #e0e7ff;
+  color: #2563eb;
+  border-color: #2563eb;
+}
+
+.upload-btn {
+  margin-top: 18px;
+  padding: 0.65rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.selected-file-info {
+  margin-top: 8px;
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.pdf-drag-upload {
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  background: #fafbfc;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 1.5rem;
+  position: relative;
+  min-width: 320px;
+  max-width: 420px;
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.pdf-drag-upload.drag-active {
+  border-color: #2563eb;
+  background: #e0e7ff;
+}
+
+.drag-upload-text {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.25rem;
+}
+
+.drag-upload-note {
+  font-size: 1rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.selected-file-info {
+  margin-top: 0.5rem;
+  color: #2563eb;
+  font-weight: 500;
+  font-size: 0.5rem;
+}
+
+/* Styles for delete button in Label List */
+.saved-table-actions .btn-danger {
+  padding: 0 0.6rem;
+}
+
+.saved-table-actions .btn-danger .btn-icon {
+  font-size: 1rem;
+}
+
+/* Ensure consistent height for action buttons in list */
+.list-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
+}
+
+
+.list-action-btn.btn-danger {
+  padding: 0.5rem 0.6rem;
+}
+
+.saved-table-actions .btn-danger .btn-icon {
+  font-size: 1rem;
+  vertical-align: middle;
 } 

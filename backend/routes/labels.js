@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
   try {
     let query = {};
     if (req.query.mucNumber) {
-      query.mucNumber = req.query.mucNumber;
+      query.mucNumber = { $regex: `^${req.query.mucNumber}$`, $options: 'i' };
     }
     
     // Add date range filtering
@@ -58,11 +58,9 @@ router.post('/', async (req, res) => {
       'mucNumber',
       'inventoryType',
       'productName',
-      'unit',
       'gradeValue',
       'length',
       'width',
-      'thickness',
       'totalMM',
       'quantity'
     ];

@@ -39,6 +39,11 @@ const inventorySchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  threshold: {
+    type: Number,
+    required: true,
+    default: 12  // Default threshold value
+  },
   bundleNumber: {
     type: String,
     required: true

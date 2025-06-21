@@ -3,6 +3,7 @@ import axios from 'axios';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import './Label.css';
+import { FaFilePdf, FaTrash } from 'react-icons/fa';
 
 const columns = [
   'Product Name',
@@ -25,6 +26,7 @@ const Label = () => {
     const [savedTables, setSavedTables] = useState([]);
     const [saving, setSaving] = useState(false);
     const [success, setSuccess] = useState('');
+    const [dragActive, setDragActive] = useState(false);
 
     useEffect(() => {
         if (activeTab === 'list') {
@@ -99,9 +101,13 @@ const Label = () => {
     const handleExportPDF = (rows) => {
         const doc = new jsPDF();
         doc.text('Extracted Label Data', 14, 16);
+        const body = rows.map(row => columns.map(col => row[col] || ''));
+        // Add the total count row
+        body.push(Array(columns.length - 1).fill('')); // Fill all but last cell with empty
+        body[body.length - 1][columns.length - 1] = `Total count: ${rows.length}`;
         doc.autoTable({
             head: [columns],
-            body: rows.map(row => columns.map(col => row[col] || '')),
+            body,
             startY: 22,
             styles: { fontSize: 8 },
             headStyles: { fillColor: [37, 99, 235] },
@@ -109,19 +115,60 @@ const Label = () => {
         doc.save('label-data.pdf');
     };
 
+    // Drag and drop handlers
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(true);
+    };
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
+    };
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            const file = e.dataTransfer.files[0];
+            if (file.type !== 'application/pdf') {
+                setError('Only PDF files are allowed.');
+                setSelectedFile(null);
+            } else {
+                setSelectedFile(file);
+                setError('');
+            }
+        }
+    };
+    const fileInputRef = React.useRef();
+    const handleBoxClick = () => {
+        fileInputRef.current.click();
+    };
+
+    // Delete a saved table
+    const handleDeleteTable = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this table?')) return;
+        try {
+            await axios.delete(`/pdf-labels/${id}`);
+            setSavedTables((prev) => prev.filter((set) => set._id !== id));
+        } catch (err) {
+            setError('Failed to delete table.');
+        }
+    };
+
     return (
         <div className="label-container">
             <h1>Label Management</h1>
-            <div style={{ marginBottom: 24 }}>
+            <div className="label-tabs-row">
                 <button
-                    className={`btn-primary${activeTab === 'extract' ? ' active' : ''}`}
-                    style={{ marginRight: 12 }}
+                    className={`btn-primary tab-btn${activeTab === 'extract' ? ' active' : ''}`}
                     onClick={() => setActiveTab('extract')}
                 >
                     Upload & Extract
                 </button>
                 <button
-                    className={`btn-primary${activeTab === 'list' ? ' active' : ''}`}
+                    className={`btn-primary tab-btn${activeTab === 'list' ? ' active' : ''}`}
                     onClick={() => setActiveTab('list')}
                 >
                     List
@@ -129,32 +176,38 @@ const Label = () => {
             </div>
             {activeTab === 'extract' && (
                 <>
-                    <div className="pdf-upload-section" style={{ marginBottom: 24 }}>
-                        <label htmlFor="pdf-upload" className="pdf-upload-label" style={{ fontWeight: 500, color: '#333', marginRight: 12 }}>Upload PDF:</label>
+                    <div
+                        className={`pdf-drag-upload${dragActive ? ' drag-active' : ''}`}
+                        onClick={handleBoxClick}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                    >
                         <input
                             type="file"
                             id="pdf-upload"
                             accept="application/pdf"
                             onChange={handleFileChange}
-                            className="form-control"
-                            style={{ maxWidth: 300, display: 'inline-block' }}
+                            ref={fileInputRef}
+                            style={{ display: 'none' }}
                         />
-                        <button
-                            className="btn-primary"
-                            style={{ marginLeft: 16 }}
-                            onClick={handleUpload}
-                            disabled={!selectedFile || loading}
-                        >
-                            {loading ? 'Uploading...' : 'Upload & Extract'}
-                        </button>
+                        <FaFilePdf size={48} color="#a78bfa" style={{ marginBottom: 12 }} />
+                        <div className="drag-upload-text">Click to select a PDF</div>
+                        <div className="drag-upload-note">Max size: 10MB</div>
                         {selectedFile && !error && (
-                            <div className="selected-file" style={{ marginTop: 8, color: '#2563eb', fontWeight: 500 }}>
-                                Selected file: {selectedFile.name}
-                            </div>
+                            <div className="selected-file-info">Selected file: {selectedFile.name}</div>
                         )}
-                        {error && <div className="error-message">{error}</div>}
-                        {success && <div className="success-message">{success}</div>}
                     </div>
+                    <button
+                        className="btn-primary upload-btn"
+                        onClick={handleUpload}
+                        disabled={!selectedFile || loading}
+                        style={{ marginTop: 18 }}
+                    >
+                        {loading ? 'Uploading...' : 'Upload & Extract'}
+                    </button>
+                    {error && <div className="error-message">{error}</div>}
+                    {success && <div className="success-message">{success}</div>}
                     {tableData.length > 0 && (
                         <>
                             <div className="table-container">
@@ -174,6 +227,11 @@ const Label = () => {
                                                 ))}
                                             </tr>
                                         ))}
+                                        <tr>
+                                            <td colSpan={columns.length} style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                                                Total: {tableData.length}
+                                            </td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -198,9 +256,14 @@ const Label = () => {
                             <div key={set._id || idx} style={{ marginBottom: 32, border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, background: '#fafbfc' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                                     <div style={{ fontWeight: 600, color: '#2563eb' }}>Saved Table {savedTables.length - idx}</div>
-                                    <button className="btn-primary" onClick={() => handleExportPDF(set.rows)}>
-                                        Export PDF
-                                    </button>
+                                    <div className="saved-table-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <button className="btn-primary list-action-btn" onClick={() => handleExportPDF(set.rows)}>
+                                            Export PDF
+                                        </button>
+                                        <button className="btn-danger list-action-btn" title="Delete Table" onClick={() => handleDeleteTable(set._id)}>
+                                            <FaTrash />
+                                        </button>
+                                    </div>
                                 </div>
                                 <table className="table">
                                     <thead>
@@ -218,6 +281,11 @@ const Label = () => {
                                                 ))}
                                             </tr>
                                         ))}
+                                        <tr>
+                                            <td colSpan={columns.length} style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                                                Total: {set.rows.length}
+                                            </td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>

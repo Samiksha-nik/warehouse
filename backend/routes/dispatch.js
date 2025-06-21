@@ -83,6 +83,7 @@ router.post('/', upload.fields([
       toLocation: req.body.toLocation,
       address: req.body.address,
       marketplace: req.body.marketplace,
+      status: 'pending',
     });
 
     await dispatch.save();
@@ -118,6 +119,9 @@ router.patch('/:id', upload.fields([
       dispatchDate: req.body.dispatchDate,
       customer: req.body.customer,
     };
+    if (req.body.status) {
+      update.status = req.body.status;
+    }
     if (req.files && req.files.invoice) {
       update.invoiceUrl = `uploads/dispatch/${req.files.invoice[0].filename}`;
     }
@@ -135,6 +139,99 @@ router.patch('/:id', upload.fields([
     res.json(updated);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// Dashboard: Dispatches by marketplace and month (last 6 months)
+router.get('/dashboard/dispatches-by-platform', async (req, res) => {
+  try {
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    // Aggregate dispatches by month and marketplace, only for completed status
+    const data = await Dispatch.aggregate([
+      {
+        $match: {
+          dispatchDate: { $gte: sixMonthsAgo },
+          status: 'completed'
+        }
+      },
+      {
+        $addFields: {
+          month: { $month: '$dispatchDate' },
+          year: { $year: '$dispatchDate' }
+        }
+      },
+      {
+        $group: {
+          _id: { year: '$year', month: '$month', marketplace: '$marketplace' },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $group: {
+          _id: { year: '$_id.year', month: '$_id.month' },
+          platforms: {
+            $push: {
+              marketplace: '$_id.marketplace',
+              count: '$count'
+            }
+          }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 }
+      }
+    ]);
+
+    // Format result as [{ month: 'Jan', amazon: 5, flipkart: 3 }, ...]
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const result = data.map(item => {
+      const month = monthNames[item._id.month - 1];
+      const year = item._id.year;
+      const amazon = item.platforms.find(p => p.marketplace === 'Amazon')?.count || 0;
+      const flipkart = item.platforms.find(p => p.marketplace === 'Flipkart')?.count || 0;
+      return { month: `${month} ${year}`, amazon, flipkart };
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching dispatches by platform', error: err.message });
+  }
+});
+
+// Dashboard: Number of dispatches today and this week
+router.get('/dashboard/dispatches-today-week', async (req, res) => {
+  try {
+    const now = new Date();
+    // Today
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Start of week (Monday)
+    const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1; // Monday as start
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+
+    const dispatchesToday = await Dispatch.countDocuments({
+      dispatchDate: { $gte: startOfToday, $lte: now },
+      status: { $ne: 'pending' }
+    });
+    const dispatchesThisWeek = await Dispatch.countDocuments({
+      dispatchDate: { $gte: startOfWeek, $lte: now },
+      status: { $ne: 'pending' }
+    });
+    res.json({ dispatchesToday, dispatchesThisWeek });
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching dispatches today/this week', error: err.message });
+  }
+});
+
+// Dashboard: Pending dispatches
+router.get('/dashboard/pending-dispatches', async (req, res) => {
+  try {
+    // Assuming 'pending' status is tracked in Dispatch model (add status field if not present)
+    // If not, count all dispatches that are not completed/delivered
+    // For now, count all dispatches with status 'pending'
+    const pendingCount = await Dispatch.countDocuments({ status: 'pending' });
+    res.json({ pendingDispatches: pendingCount });
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching pending dispatches', error: err.message });
   }
 });
 

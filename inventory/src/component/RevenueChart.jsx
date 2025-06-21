@@ -1,27 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../styles/shared.css';
+import axios from 'axios';
 
 const RevenueChart = () => {
   const [tooltip, setTooltip] = useState({ show: false, x: 0, y: 0, data: null });
+  const [revenueData, setRevenueData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sample data for Amazon and Flipkart revenue
-  const revenueData = [
-    { month: 'Jan', amazon: 15000, flipkart: 12000 },
-    { month: 'Feb', amazon: 22000, flipkart: 19000 },
-    { month: 'Mar', amazon: 18000, flipkart: 15000 },
-    { month: 'Apr', amazon: 25000, flipkart: 22000 },
-    { month: 'May', amazon: 21000, flipkart: 18000 },
-    { month: 'Jun', amazon: 28000, flipkart: 25000 },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/api/dispatch/dashboard/dispatches-by-platform');
+        setRevenueData(res.data);
+      } catch (err) {
+        setRevenueData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
-  const maxRevenue = Math.max(
-    ...revenueData.map(item => Math.max(item.amazon, item.flipkart))
-  );
+  const maxRevenue = revenueData.length > 0
+    ? Math.max(...revenueData.map(item => Math.max(item.amazon, item.flipkart)))
+    : 1;
 
   const handleMouseEnter = (e, data, platform) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const chartRect = e.currentTarget.closest('.revenue-chart-card').getBoundingClientRect();
-    
     setTooltip({
       show: true,
       x: rect.left - chartRect.left + (rect.width / 2),
@@ -52,29 +58,35 @@ const RevenueChart = () => {
         </div>
       </div>
       <div className="chart-container">
-        {revenueData.map((item, index) => (
-          <div key={index} className="chart-bar-wrapper">
-            <div className="chart-bars">
-              <div 
-                className="chart-bar amazon"
-                style={{
-                  height: `${(item.amazon / maxRevenue) * 100}%`
-                }}
-                onMouseEnter={(e) => handleMouseEnter(e, item, 'amazon')}
-                onMouseLeave={handleMouseLeave}
-              />
-              <div 
-                className="chart-bar flipkart"
-                style={{
-                  height: `${(item.flipkart / maxRevenue) * 100}%`
-                }}
-                onMouseEnter={(e) => handleMouseEnter(e, item, 'flipkart')}
-                onMouseLeave={handleMouseLeave}
-              />
+        {loading ? (
+          <div style={{ textAlign: 'center', width: '100%' }}>Loading...</div>
+        ) : revenueData.length === 0 ? (
+          <div style={{ textAlign: 'center', width: '100%' }}>No data</div>
+        ) : (
+          revenueData.map((item, index) => (
+            <div key={index} className="chart-bar-wrapper">
+              <div className="chart-bars">
+                <div 
+                  className="chart-bar amazon"
+                  style={{
+                    height: `${(item.amazon / maxRevenue) * 100}%`
+                  }}
+                  onMouseEnter={(e) => handleMouseEnter(e, item, 'amazon')}
+                  onMouseLeave={handleMouseLeave}
+                />
+                <div 
+                  className="chart-bar flipkart"
+                  style={{
+                    height: `${(item.flipkart / maxRevenue) * 100}%`
+                  }}
+                  onMouseEnter={(e) => handleMouseEnter(e, item, 'flipkart')}
+                  onMouseLeave={handleMouseLeave}
+                />
+              </div>
+              <span className="chart-label">{item.month}</span>
             </div>
-            <span className="chart-label">{item.month}</span>
-          </div>
-        ))}
+          ))
+        )}
       </div>
       {tooltip.show && tooltip.data && (
         <div 
@@ -88,7 +100,7 @@ const RevenueChart = () => {
           <div className="tooltip-content">
             <span className="tooltip-platform">{tooltip.data.platform}</span>
             <span className="tooltip-month">{tooltip.data.month}</span>
-            <span className="tooltip-value">₹{tooltip.data.value.toLocaleString()}</span>
+            <span className="tooltip-value">{tooltip.data.value}</span>
           </div>
         </div>
       )}

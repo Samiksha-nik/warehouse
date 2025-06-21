@@ -7,6 +7,9 @@ const path = require('path');
 const fs = require('fs');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
+const nodeCron = require('node-cron');
+const Inventory = require('./models/Inventory');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -124,6 +127,22 @@ app.use('/api/stock-report', stockReportRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/pdf-labels', pdfLabelsRouter);
 
+// TEMP: Test email endpoint
+app.get('/api/test-email', async (req, res) => {
+  try {
+    await transporter.sendMail({
+      from: 'nikamsamiksha43@gmail.com',
+      to: ALERT_RECIPIENT,
+      subject: 'Test Email from Warehouse Inventory App',
+      html: '<h2>This is a test email.</h2><p>If you received this, your email setup is working!</p>'
+    });
+    res.json({ message: 'Test email sent successfully.' });
+  } catch (err) {
+    console.error('Error sending test email:', err);
+    res.status(500).json({ error: 'Failed to send test email.' });
+  }
+});
+
 // Basic route
 app.get('/', (req, res) => {
   res.send('Backend server is running!');
@@ -131,6 +150,52 @@ app.get('/', (req, res) => {
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Email setup for low stock alerts
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'nikamsamiksha43@gmail.com',
+    pass: process.env.ALERT_EMAIL_PASS || 'your_gmail_app_password',
+  },
+});
+const ALERT_RECIPIENT = 'nikamsamiksha43@gmail.com';
+
+async function sendLowStockEmailAlert(items) {
+  if (!items || items.length === 0) return;
+  const html = `
+    <h2>Low Stock Daily Summary</h2>
+    <p>The following products are below their stock threshold:</p>
+    <ul>
+      ${items.map(item => `<li><b>${item.productName}</b> (Current: ${item.quantity}, Threshold: ${item.threshold})</li>`).join('')}
+    </ul>
+  `;
+  await transporter.sendMail({
+    from: 'nikamsamiksha43@gmail.com',
+    to: ALERT_RECIPIENT,
+    subject: 'Low Stock Daily Summary',
+    html,
+  });
+}
+
+// Schedule a daily job at 8:00 AM
+nodeCron.schedule('0 8 * * *', async () => {
+  try {
+    const lowStockItems = await Inventory.find({
+      $expr: {
+        $lt: ['$quantity', '$threshold']
+      }
+    });
+    if (lowStockItems.length > 0) {
+      await sendLowStockEmailAlert(lowStockItems);
+      console.log('Low stock daily summary email sent.');
+    } else {
+      console.log('No low stock items for daily summary.');
+    }
+  } catch (err) {
+    console.error('Error sending daily low stock summary:', err);
+  }
+});
 
 // Start the server
 app.listen(port, () => {

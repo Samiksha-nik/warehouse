@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import '../../styles/shared.css';
-import { FaPlusCircle, FaList, FaSave, FaTimes, FaQrcode, FaTrash } from 'react-icons/fa';
+import { FaPlusCircle, FaList, FaSave, FaTimes, FaQrcode, FaTrash, FaEdit } from 'react-icons/fa';
 import axios from 'axios';
 import tableStyles from '../../styles/TableStyles.module.css';
 import { toast } from 'react-toastify';
@@ -34,10 +34,36 @@ const AssignInventory = () => {
   });
 
   const lastCheckedLabel = useRef('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [editingId, setEditingId] = useState(null);
+  const itemsPerPage = 10;
+
+  const [searchFields, setSearchFields] = useState({
+    productName: '',
+    length: '',
+    width: '',
+    grade: '',
+    quantity: ''
+  });
+  const [productOptions, setProductOptions] = useState([]);
+  const [gradeOptions, setGradeOptions] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState(null);
 
   // Fetch assignments when component mounts (removed fetchCustomers)
   useEffect(() => {
     fetchAssignments();
+  }, []);
+
+  useEffect(() => {
+    // Fetch product and grade options for the search tab
+    axios.get('http://localhost:5000/api/products/')
+      .then(res => setProductOptions(res.data))
+      .catch(() => setProductOptions([]));
+    axios.get('http://localhost:5000/api/grades/')
+      .then(res => setGradeOptions(res.data))
+      .catch(() => setGradeOptions([]));
   }, []);
 
   const fetchAssignments = async () => {
@@ -257,58 +283,47 @@ const AssignInventory = () => {
     }
   };
 
+  const handleEditAssignment = (assignment) => {
+    // Convert date to yyyy-MM-dd format for HTML date input
+    const formattedDate = assignment.date ? new Date(assignment.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    
+    setFormData({
+      date: formattedDate,
+      customerName: assignment.customerName || '',
+      orderId: assignment.orderId || '',
+      labelNumber: assignment.labelNumber || '',
+      qrCode: assignment.qrCode || '',
+      assignTo: assignment.assignTo || '',
+      labelDetails: assignment.labelDetails || {
+        productName: '', unit: '', grade: '', length: '', width: '', thickness: '', totalMm: '', quantity: '', bundleNumber: ''
+      },
+      marketplace: assignment.marketplace || '',
+    });
+    setEditingId(assignment._id);
+    setActiveTab('add');
+  };
+
   const handleSaveAssignment = async (e) => {
     e.preventDefault();
-
-    // Basic validation
-    console.log('Validating form data:', formData);
-    console.log('customerName:', formData.customerName);
-    console.log('orderId:', formData.orderId);
-    console.log('labelNumber:', formData.labelNumber);
-    console.log('assignTo:', formData.assignTo);
-    console.log('marketplace:', formData.marketplace);
-
-    if (!formData.customerName || !formData.orderId || !formData.labelNumber || !formData.assignTo || !formData.marketplace) {
-      toast.error('Please fill all required fields.');
-      return;
-    }
-
-    // Validate labelDetails (ensure product details are fetched)
-    console.log('Validating labelDetails:', formData.labelDetails);
-    if (!formData.labelDetails.productName || !formData.labelDetails.unit || !formData.labelDetails.grade || !formData.labelDetails.length || !formData.labelDetails.width || !formData.labelDetails.thickness || !formData.labelDetails.totalMm || !formData.labelDetails.quantity) {
-      toast.error('Please ensure product details are fetched by entering a valid MUC number.');
-      return;
-    }
-
     try {
       setLoading(true);
-      await axios.post(`${API_URL}/assignments`, formData);
-      toast.success('Assignment created successfully!');
-      // Clear form after successful submission
+      if (editingId) {
+        await axios.post(`${API_URL}/assignments/update/${editingId}`, formData);
+        toast.success('Assignment updated successfully!');
+        setEditingId(null);
+      } else {
+        await axios.post(`${API_URL}/assignments`, formData);
+        toast.success('Assignment created successfully!');
+      }
       setFormData({
         date: new Date().toISOString().split('T')[0],
-        customerName: '',
-        orderId: '',
-        labelNumber: '',
-        qrCode: '',
-        assignTo: '',
-        labelDetails: {
-          productName: '',
-          unit: '',
-          grade: '',
-          length: '',
-          width: '',
-          thickness: '',
-          totalMm: '',
-          quantity: '',
-          bundleNumber: ''
-        },
-        marketplace: ''
+        customerName: '', orderId: '', labelNumber: '', qrCode: '', assignTo: '',
+        labelDetails: { productName: '', unit: '', grade: '', length: '', width: '', thickness: '', totalMm: '', quantity: '', bundleNumber: '' },
+        marketplace: '',
       });
-      fetchAssignments(); // Refresh assignments list
+      fetchAssignments();
       setActiveTab('list');
     } catch (error) {
-      console.error('Error saving assignment:', error);
       toast.error('Error saving assignment: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
@@ -328,8 +343,62 @@ const AssignInventory = () => {
     }
   };
 
+  const handleSearchFieldChange = (e) => {
+    const { name, value } = e.target;
+    setSearchFields(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    setSearchLoading(true);
+    setSearchError(null);
+    setSearchResults([]);
+    try {
+      const params = {
+        productName: searchFields.productName,
+        length: searchFields.length,
+        width: searchFields.width,
+        grade: searchFields.grade,
+        quantity: searchFields.quantity
+      };
+      const response = await axios.get('http://localhost:5000/api/assignments/assign-inventory-search', { params });
+      setSearchResults(response.data.results);
+      if (searchFields.quantity && response.data.results.length < Number(searchFields.quantity)) {
+        window.alert(`Only ${response.data.results.length} quantity available in stock.`);
+      }
+    } catch (err) {
+      setSearchError('Error fetching search results. Please try again.');
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Add this function to handle assign button click
+  const handleAssign = (row) => {
+    setActiveTab('add');
+    setFormData(prev => ({
+      ...prev,
+      labelNumber: row.mucNumber,
+      qrCode: row.mucNumber,
+      labelDetails: {
+        ...prev.labelDetails,
+        productName: row.productName,
+        grade: row.grade,
+        length: row.length,
+        width: row.width,
+        unit: row.unit || '',
+        bundleNumber: row.bundleNumber || '',
+        quantity: row.quantity || '',
+        thickness: row.thickness || '',
+        totalMm: row.totalMm || ''
+      }
+    }));
+  };
+
   const renderAddForm = () => (
     <div className="card">
+      <h2>{editingId ? 'Update Assignment' : 'Add New Assignment'}</h2>
       <form onSubmit={handleSaveAssignment} className="form-container">
         {/* Container for side-by-side blocks */}
         <div
@@ -440,6 +509,11 @@ const AssignInventory = () => {
                       className="form-control"
                       maxLength={20}
                       onBlur={handleLabelNumberChange}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === 'Tab') {
+                          handleLabelNumberChange(e);
+                        }
+                      }}
                     />
                     <input
                       type="file"
@@ -448,7 +522,7 @@ const AssignInventory = () => {
                       style={{ display: 'none' }}
                       id="qrCodeUpload"
                     />
-                    <label htmlFor="qrCodeUpload" className="btn-primary">
+                    <label htmlFor="qrCodeUpload" className="btn-primary" style={{ color: 'white' }}>
                       Upload Barcode
                     </label>
                   </div>
@@ -549,80 +623,104 @@ const AssignInventory = () => {
         </div>
 
         <div className="form-actions">
-          <button type="submit" className="btn btn-primary"><FaSave /> Save Assignment</button>
-          <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('list')}><FaTimes /> Cancel</button>
+          <button type="submit" className="btn btn-primary">
+            <FaSave /> {editingId ? 'Update Assignment' : 'Save Assignment'}
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => {
+            setActiveTab('list');
+            setEditingId(null);
+            setFormData({
+              date: new Date().toISOString().split('T')[0],
+              customerName: '', orderId: '', labelNumber: '', qrCode: '', assignTo: '',
+              labelDetails: { productName: '', unit: '', grade: '', length: '', width: '', thickness: '', totalMm: '', quantity: '', bundleNumber: '' },
+              marketplace: '',
+            });
+          }}><FaTimes /> Cancel</button>
         </div>
       </form>
     </div>
   );
 
-  const renderList = () => (
-    <div className="card">
-      <h2>Assigned Inventory List</h2>
-      {loading ? (
-        <p>Loading assignments...</p>
-      ) : error ? (
-        <p className="error-message">{error}</p>
-      ) : (
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>MUC Number</th>
-                <th>Assigned From</th>
-                <th>Order ID</th>
-                <th>Product Name</th>
-                <th>Unit</th>
-                <th>Grade</th>
-                <th>Length</th>
-                <th>Width</th>
-                <th>Thickness</th>
-                <th>Total MM</th>
-                <th>Quantity</th>
-                <th>Bundle Number</th>
-                <th>Assigned To</th>
-                <th>Marketplace</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {assignments.length === 0 ? (
+  const renderList = () => {
+    const totalPages = Math.ceil(assignments.length / itemsPerPage);
+    const paginatedAssignments = assignments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    return (
+      <div className="card">
+        <h2>Assigned Inventory List</h2>
+        {loading ? (
+          <p>Loading assignments...</p>
+        ) : error ? (
+          <p className="error-message">{error}</p>
+        ) : (
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan="16" style={{ textAlign: 'center' }}>No assignments found.</td>
+                  <th>Date</th>
+                  <th>MUC Number</th>
+                  <th>Assigned From</th>
+                  <th>Order ID</th>
+                  <th>Product Name</th>
+                  <th>Unit</th>
+                  <th>Grade</th>
+                  <th>Length</th>
+                  <th>Width</th>
+                  <th>Thickness</th>
+                  <th>Total MM</th>
+                  <th>Quantity</th>
+                  <th>Bundle Number</th>
+                  <th>Assigned To</th>
+                  <th>Marketplace</th>
+                  <th>Actions</th>
                 </tr>
-              ) : (
-                assignments.map(assignment => (
-                  <tr key={assignment._id}>
-                    <td>{assignment.date ? new Date(assignment.date).toLocaleDateString() : ''}</td>
-                    <td>{assignment.labelNumber}</td>
-                    <td>{assignment.customerName}</td>
-                    <td>{assignment.orderId}</td>
-                    <td className={tableStyles.productNameCell}>{assignment.labelDetails?.productName || '-'}</td>
-                    <td>{assignment.labelDetails?.unit || '-'}</td>
-                    <td>{assignment.labelDetails?.grade || '-'}</td>
-                    <td>{assignment.labelDetails?.length || '-'}</td>
-                    <td>{assignment.labelDetails?.width || '-'}</td>
-                    <td>{assignment.labelDetails?.thickness || '-'}</td>
-                    <td>{assignment.labelDetails?.totalMm || '-'}</td>
-                    <td>{assignment.labelDetails?.quantity || '-'}</td>
-                    <td>{assignment.labelDetails?.bundleNumber || '-'}</td>
-                    <td>{assignment.assignTo}</td>
-                    <td>{assignment.marketplace}</td>
-                    <td>
-                      <button onClick={() => handleDeleteAssignment(assignment._id)} className="btn-icon">
-                        <FaTrash />
-                      </button>
-                    </td>
+              </thead>
+              <tbody>
+                {paginatedAssignments.length === 0 ? (
+                  <tr>
+                    <td colSpan="16" style={{ textAlign: 'center' }}>No assignments found.</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
+                ) : (
+                  paginatedAssignments.map(assignment => (
+                    <tr key={assignment._id}>
+                      <td>{assignment.date ? new Date(assignment.date).toLocaleDateString() : ''}</td>
+                      <td>{assignment.labelNumber}</td>
+                      <td>{assignment.customerName}</td>
+                      <td>{assignment.orderId}</td>
+                      <td className={tableStyles.productNameCell}>{assignment.labelDetails?.productName || '-'}</td>
+                      <td>{assignment.labelDetails?.unit || '-'}</td>
+                      <td>{assignment.labelDetails?.grade || '-'}</td>
+                      <td>{assignment.labelDetails?.length || '-'}</td>
+                      <td>{assignment.labelDetails?.width || '-'}</td>
+                      <td>{assignment.labelDetails?.thickness || '-'}</td>
+                      <td>{assignment.labelDetails?.totalMm || '-'}</td>
+                      <td>{assignment.labelDetails?.quantity || '-'}</td>
+                      <td>{assignment.labelDetails?.bundleNumber || '-'}</td>
+                      <td>{assignment.assignTo}</td>
+                      <td>{assignment.marketplace}</td>
+                      <td>
+                        <button onClick={() => handleEditAssignment(assignment)} className="btn-icon" title="Edit"><FaEdit /></button>
+                        <button onClick={() => handleDeleteAssignment(assignment._id)} className="btn-icon" title="Delete"><FaTrash /></button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Previous</button>
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button key={i + 1} onClick={() => setCurrentPage(i + 1)} className={currentPage === i + 1 ? 'active' : ''}>{i + 1}</button>
+                ))}
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="page-content">
@@ -633,20 +731,113 @@ const AssignInventory = () => {
 
       <div className="tabs">
         <button
+          className={`tab-button ${activeTab === 'search' ? 'active' : ''}`}
+          onClick={() => setActiveTab('search')}
+        >
+          <span>Search</span>
+        </button>
+        <button
           className={`tab-button ${activeTab === 'add' ? 'active' : ''}`}
           onClick={() => setActiveTab('add')}
         >
-          <FaPlusCircle className="btn-icon" /> Add New
+          <FaPlusCircle className="btn-icon" /> <span>Add New</span>
         </button>
         <button
           className={`tab-button ${activeTab === 'list' ? 'active' : ''}`}
           onClick={() => setActiveTab('list')}
         >
-          <FaList className="btn-icon" /> List
+          <FaList className="btn-icon" /> <span>List</span>
         </button>
       </div>
 
-      {activeTab === 'add' ? renderAddForm() : renderList()}
+      {activeTab === 'search' ? (
+        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+          <div className="card" style={{ width: '80%', minWidth: 400, maxWidth: 900 }}>
+            <h2>Search</h2>
+            <form className="form" onSubmit={handleSearch} style={{ width: '100%' }}>
+              <div style={{ display: 'flex', gap: '24px', marginBottom: '24px' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Product Name</label>
+                  <select name="productName" value={searchFields.productName} onChange={handleSearchFieldChange} className="form-control">
+                    <option value="">Select Product</option>
+                    {productOptions.map(p => (
+                      <option key={p._id} value={p.productName}>{p.productName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Length</label>
+                  <input type="text" name="length" value={searchFields.length} onChange={handleSearchFieldChange} className="form-control" placeholder="Enter Length" />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '24px', marginBottom: '24px' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Width</label>
+                  <input type="text" name="width" value={searchFields.width} onChange={handleSearchFieldChange} className="form-control" placeholder="Enter Width" />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Grade</label>
+                  <select name="grade" value={searchFields.grade} onChange={handleSearchFieldChange} className="form-control">
+                    <option value="">Select Grade</option>
+                    {gradeOptions.map(g => (
+                      <option key={g._id} value={g.gradeName}>{g.gradeName}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '24px', marginBottom: '24px' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Quantity</label>
+                  <input type="number" name="quantity" value={searchFields.quantity} onChange={handleSearchFieldChange} className="form-control" placeholder="Enter Quantity" min="1" />
+                </div>
+              </div>
+              <button type="submit" className="btn btn-primary" style={{ width: 200, alignSelf: 'center' }}>Search</button>
+            </form>
+            {/* Results Table */}
+            <div style={{ marginTop: 32 }}>
+              {searchLoading && <p>Loading results...</p>}
+              {searchError && <p className="error-message">{searchError}</p>}
+              {!searchLoading && !searchError && searchResults.length > 0 && (
+                <div className="data-table-container">
+                  <h3>Search Results</h3>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>MUC Number</th>
+                        <th>Product Name</th>
+                        <th>Grade</th>
+                        <th>Length</th>
+                        <th>Width</th>
+                        {/* Add more columns as needed */}
+                        <th>Assign</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {searchResults.map((item, idx) => (
+                        <tr key={idx}>
+                          <td>{item.mucNumber}</td>
+                          <td>{item.productName}</td>
+                          <td>{item.grade}</td>
+                          <td>{item.length}</td>
+                          <td>{item.width}</td>
+                          <td>
+                            <button className="btn btn-primary" style={{padding: '4px 12px'}} onClick={() => handleAssign(item)}>
+                              Assign
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {!searchLoading && !searchError && searchResults.length === 0 && (
+                <p>No matching products found. Please adjust your criteria and try again.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : activeTab === 'add' ? renderAddForm() : renderList()}
     </div>
   );
 };

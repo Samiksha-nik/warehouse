@@ -43,10 +43,10 @@ const StockTransfer = () => {
         </div>
         <div className="tab-content">
           {activeTab === 'inward-form' && (
-            <StockTransferInward showForm={true} showList={false} />
+            <StockTransferInward showForm={true} showList={false} onSwitchToForm={() => setActiveTab('inward-form')} />
           )}
           {activeTab === 'inward-list' && (
-            <StockTransferInward showForm={false} showList={true} />
+            <StockTransferInward showForm={false} showList={true} onSwitchToForm={() => setActiveTab('inward-form')} />
           )}
           {activeTab === 'outward-form' && (
             <StockTransferOutward showForm={true} showList={false} />

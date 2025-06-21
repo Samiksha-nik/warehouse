@@ -25,7 +25,7 @@ const stockTransferInwardSchema = new mongoose.Schema({
   },
   unit: {
     type: String,
-    required: true
+    required: false
   },
   grade: {
     type: String,
@@ -41,7 +41,7 @@ const stockTransferInwardSchema = new mongoose.Schema({
   },
   thickness: {
     type: Number,
-    required: true
+    required: false
   },
   totalMm: {
     type: Number,

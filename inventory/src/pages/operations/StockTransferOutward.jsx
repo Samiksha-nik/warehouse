@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { FaTrash, FaEdit } from 'react-icons/fa';
+import { FaTrash, FaEdit, FaCamera, FaTimes } from 'react-icons/fa';
 import '../../styles/shared.css';
 import { toast } from 'react-toastify';
 import tableStyles from '../../styles/TableStyles.module.css';
@@ -55,6 +55,12 @@ const StockTransferOutward = ({ showForm, showList }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [showCamera, setShowCamera] = useState(false);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+
   useEffect(() => {
     if (showList) {
       fetchTransfers();
@@ -102,6 +108,45 @@ const StockTransferOutward = ({ showForm, showList }) => {
       setFilteredTransfers(transfers);
     }
   }, [searchMuc, transfers]);
+
+  // Effect to handle camera stream
+  useEffect(() => {
+    if (showCamera) {
+      const enableStream = async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: 'environment',
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          });
+          streamRef.current = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        } catch (err) {
+          console.error("Error accessing camera:", err);
+          setMessage({ text: 'Could not access the camera. Please check permissions.', type: 'error' });
+          setShowCamera(false);
+        }
+      };
+      enableStream();
+    } else {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    }
+    
+    // Cleanup stream on component unmount
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [showCamera]);
 
   // Fetch product details by MUC number from inward transfers (strict match)
   const fetchInwardDetails = async (mucNumber) => {
@@ -220,8 +265,8 @@ const StockTransferOutward = ({ showForm, showList }) => {
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
       const mucNumber = formData.mucNumber.trim();
       if (mucNumber) {
@@ -305,6 +350,9 @@ const StockTransferOutward = ({ showForm, showList }) => {
       });
       setEditingId(null);
       fetchTransfers();
+      setMucValid(false);
+      setCapturedImage(null);
+      setShowCamera(false);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error saving transfer');
     }
@@ -360,6 +408,45 @@ const StockTransferOutward = ({ showForm, showList }) => {
     }
   };
 
+  // --- Camera Control Functions ---
+  const handleTakePhotoClick = () => {
+    setShowCamera(true);
+  };
+
+  const handleCloseCamera = () => {
+    setShowCamera(false);
+  };
+  
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `product-photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
+          setFormData(prev => ({ ...prev, productPhoto: file }));
+          setCapturedImage(URL.createObjectURL(blob));
+          handleCloseCamera();
+          setMessage({ text: 'Photo captured successfully!', type: 'success' });
+        }
+      }, 'image/jpeg', 0.8);
+    }
+  };
+
+  const removePhoto = () => {
+    setFormData(prev => ({ ...prev, productPhoto: null }));
+    setCapturedImage(null);
+    if (capturedImage) {
+      URL.revokeObjectURL(capturedImage);
+    }
+  };
+
   const renderForm = () => (
     <>
       <style>{`
@@ -387,7 +474,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 value={formData.mucNumber}
                 onChange={handleInputChange}
                 onBlur={handleMucBlur}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 required
               />
             </div>
@@ -546,51 +633,161 @@ const StockTransferOutward = ({ showForm, showList }) => {
               />
             </div>
             <div className="form-group">
-              <label>Destination</label>
+              <label>Destination*</label>
               <input
                 type="text"
                 name="destination"
                 value={formData.destination}
                 onChange={handleInputChange}
+                required
               />
             </div>
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label>Transporter</label>
+              <label>Transporter*</label>
               <input
                 type="text"
                 name="transporter"
                 value={formData.transporter}
                 onChange={handleInputChange}
+                required
               />
             </div>
-          </div>
-          <div className="form-row">
             <div className="form-group">
               <label>Product Photo</label>
-              <input
-                type="file"
-                name="productPhoto"
-                accept="image/*"
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {!capturedImage ? (
+                  <button 
+                    type="button" 
+                    onClick={handleTakePhotoClick}
+                    className="btn-secondary"
+                    style={{ 
+                      padding: '8px 12px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '4px',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <FaCamera />
+                    Take Photo
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <img 
+                      src={capturedImage} 
+                      alt="Captured product" 
+                      style={{ 
+                        width: '60px', 
+                        height: '60px', 
+                        objectFit: 'cover', 
+                        borderRadius: '4px',
+                        border: '1px solid #ddd'
+                      }} 
+                    />
+                    <button 
+                      type="button" 
+                      onClick={removePhoto}
+                      className="btn-secondary"
+                      style={{ 
+                        padding: '4px 8px',
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px'
+                      }}
+                    >
+                      <FaTimes />
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          {/* Camera Interface */}
+          {showCamera && (
+            <div className="form-block" style={{ 
+              marginTop: '16px', 
+              padding: '16px', 
+              border: '1px solid #ddd', 
+              borderRadius: '8px',
+              backgroundColor: '#f9f9f9'
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginBottom: '12px' 
+              }}>
+                <h4 style={{ margin: 0 }}>Take Product Photo</h4>
+                <button 
+                  type="button" 
+                  onClick={handleCloseCamera}
+                  className="btn-secondary"
+                  style={{ padding: '4px 8px' }}
+                >
+                  <FaTimes />
+                </button>
+              </div>
+              <div style={{ 
+                position: 'relative', 
+                width: '100%', 
+                maxWidth: '400px', 
+                margin: '0 auto' 
+              }}>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  style={{ 
+                    width: '100%', 
+                    height: 'auto', 
+                    borderRadius: '8px',
+                    border: '2px solid #ddd'
+                  }}
+                />
+                <canvas
+                  ref={canvasRef}
+                  style={{ display: 'none' }}
+                />
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  gap: '12px', 
+                  marginTop: '12px' 
+                }}>
+                  <button 
+                    type="button" 
+                    onClick={capturePhoto}
+                    className="btn-primary"
+                    style={{ 
+                      padding: '8px 16px',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '4px'
+                    }}
+                  >
+                    <FaCamera />
+                    Capture Photo
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="form-row">
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Remarks</label>
+              <textarea
+                name="remarks"
+                value={formData.remarks}
                 onChange={handleInputChange}
-              />
+                className={styles.formControl}
+              ></textarea>
             </div>
           </div>
         </div>
-        <div className="form-row">
-          <div className="form-group" style={{ flex: 1 }}>
-            <label htmlFor="remarks">Remarks</label>
-            <textarea
-              id="remarks"
-              name="remarks"
-              value={formData.remarks}
-              onChange={handleInputChange}
-              className="form-control"
-            ></textarea>
-          </div>
-        </div>
-        <div className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+        <div className="form-actions" style={{ display: 'flex', marginTop: '1rem' }}>
           <button type="submit" className={`btn-primary ${styles.submitButton}`} disabled={!mucValid}>
             {editingId ? 'Update Transfer' : 'Create Transfer'}
           </button>
@@ -649,7 +846,6 @@ const StockTransferOutward = ({ showForm, showList }) => {
               </tr>
             ) : (
               filteredTransfers.map(transfer => {
-                console.log('Rendering transfer:', transfer); // Debug log
                 return (
                   <tr key={transfer._id}>
                     <td>{transfer.date ? new Date(transfer.date).toLocaleDateString() : ''}</td>
@@ -668,13 +864,8 @@ const StockTransferOutward = ({ showForm, showList }) => {
                     <td>
                       <button
                         className="btn-icon"
-                        onClick={() => handleEditTransfer(transfer)}
-                      >
-                        <FaEdit />
-                      </button>
-                      <button
-                        className="btn-icon"
-                        onClick={() => handleDeleteTransfer(transfer._id)}
+                        onClick={() => handleDelete(transfer._id)}
+                        title="Delete"
                       >
                         <FaTrash />
                       </button>

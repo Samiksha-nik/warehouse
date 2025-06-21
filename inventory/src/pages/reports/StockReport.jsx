@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import LowStockAlert from '../../component/LowStockAlert';
 
 const StockReport = () => {
   const [filters, setFilters] = useState({
@@ -121,6 +122,9 @@ const StockReport = () => {
         <h2>Stock Report</h2>
         <p className="page-description">View remaining stock quantities</p>
       </div>
+      
+      <LowStockAlert />
+      
       <div className="card">
         <div className="form-container">
           <div className="form-grid">

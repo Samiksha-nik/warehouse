@@ -414,6 +414,16 @@ const Dispatch = () => {
     }
   };
 
+  // Add status update handler
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await axios.patch(`http://localhost:5000/api/dispatch/${id}`, { status: newStatus });
+      setDispatches(prev => prev.map(d => d._id === id ? { ...d, status: newStatus } : d));
+    } catch (err) {
+      alert('Failed to update status');
+    }
+  };
+
   return (
     <div className="page-container">
       <div className='page-content card'>
@@ -440,6 +450,11 @@ const Dispatch = () => {
                     onBlur={handleMucBlur}
                     className="form-input"
                     required
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === 'Tab') {
+                        handleMucBlur();
+                      }
+                    }}
                   />
                 </div>
                 <div className="form-group">
@@ -608,67 +623,80 @@ const Dispatch = () => {
                 </div>
               </div>
             </div>
-            {message && <div className="message error">{message}</div>}
             <button type="submit" className="btn-primary" disabled={!productValid || !formData.mucNumber || !formData.productName || !formData.unit || !formData.grade || !formData.length || !formData.width || !formData.thickness || !formData.totalMm || !formData.quantity || !formData.fromLocation || !formData.toLocation || !formData.invoice || !formData.productPhoto || !formData.customer || !formData.orderId}>Save Dispatch</button>
           </form>
         ) : (
           <div className="card">
             <h2>Dispatch List</h2>
             {loading ? <p>Loading...</p> : error ? <p className="error">{error}</p> : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Dispatch No.</th>
-                    <th>MUC Number</th>
-                    <th>Product Photo</th>
-                    <th>Customer</th>
-                    <th>Order ID</th>
-                    <th>Invoice PDF</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dispatches.map(dispatch => (
-                    <tr key={dispatch._id}>
-                      <td>{new Date(dispatch.dispatchDate).toLocaleDateString()}</td>
-                      <td>{dispatch.dispatchNo}</td>
-                      <td>{dispatch.mucNumber}</td>
-                      <td>
-                        {dispatch.productPhotoUrl ? (
-                          <a 
-                            href={`http://localhost:5000/${dispatch.productPhotoUrl}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                          >
-                            View Photo
-                          </a>
-                        ) : (
-                          '-' // Display a dash if no photo URL
-                        )}
-                      </td>
-                      <td>{dispatch.customer}</td>
-                      <td>{dispatch.orderId}</td>
-                      <td>
-                        {dispatch.invoiceUrl ? (
-                          <button
-                            className="view-link"
-                            onClick={() => window.open(`http://localhost:5000/${dispatch.invoiceUrl}`, '_blank', 'noopener,noreferrer')}
-                            title="View Invoice PDF"
-                            type="button"
-                          >
-                            View
-                          </button>
-                        ) : '-'}
-                      </td>
-                      <td>
-                        <button className="btn-icon" title="Edit" onClick={() => handleEditDispatch(dispatch)}><FaEdit /></button>
-                        <button className="btn-icon" title="Delete" onClick={() => handleDeleteDispatch(dispatch._id)}><FaTrash /></button>
-                      </td>
+              <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
+                <table className="data-table" style={{ minWidth: 1100 }}>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Dispatch No.</th>
+                      <th>MUC Number</th>
+                      <th>Product Photo</th>
+                      <th>Customer</th>
+                      <th>Order ID</th>
+                      <th>Marketplace</th>
+                      <th>Status</th>
+                      <th>Invoice PDF</th>
+                      <th style={{ textAlign: 'center', width: 80 }}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {dispatches.map(dispatch => (
+                      <tr key={dispatch._id}>
+                        <td>{new Date(dispatch.dispatchDate).toLocaleDateString()}</td>
+                        <td>{dispatch.dispatchNo}</td>
+                        <td>{dispatch.mucNumber}</td>
+                        <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                          {dispatch.productPhotoUrl ? (
+                            <a 
+                              href={`http://localhost:5000/${dispatch.productPhotoUrl}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: 500 }}
+                            >
+                              View Photo
+                            </a>
+                          ) : (
+                            '-' // Display a dash if no photo URL
+                          )}
+                        </td>
+                        <td>{dispatch.customer}</td>
+                        <td>{dispatch.orderId}</td>
+                        <td>{dispatch.marketplace || '-'}</td>
+                        <td>
+                          <select value={dispatch.status || 'pending'} onChange={e => handleStatusChange(dispatch._id, e.target.value)}>
+                            <option value="pending">Pending</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                        </td>
+                        <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                          {dispatch.invoiceUrl ? (
+                            <button
+                              className="view-link"
+                              onClick={() => window.open(`http://localhost:5000/${dispatch.invoiceUrl}`, '_blank', 'noopener,noreferrer')}
+                              title="View Invoice PDF"
+                              type="button"
+                              style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: 500 }}
+                            >
+                              View
+                            </button>
+                          ) : '-'}
+                        </td>
+                        <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                          <button className="btn-icon" title="Delete" onClick={() => handleDeleteDispatch(dispatch._id)}>
+                            <FaTrash />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}

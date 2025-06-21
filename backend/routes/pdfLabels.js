@@ -85,4 +85,35 @@ router.get('/list', async (req, res) => {
   }
 });
 
+// Delete a saved label set by ID
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await PdfLabelSet.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Label set not found.' });
+    }
+    res.json({ message: 'Label set deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete label set.' });
+  }
+});
+
+// Fetch a label row by MUC number (Label Number) from the most recent PdfLabelSet
+router.get('/by-muc', async (req, res) => {
+  try {
+    const { mucNumber } = req.query;
+    if (!mucNumber) return res.status(400).json({ error: 'mucNumber is required' });
+    // Find the most recent label set
+    const latestSet = await PdfLabelSet.findOne().sort({ createdAt: -1 });
+    if (!latestSet || !latestSet.rows) return res.status(404).json({ error: 'No label sets found' });
+    // Find the row with the matching Label Number (case-insensitive, trimmed)
+    const row = latestSet.rows.find(r => r["Label Number"] && r["Label Number"].trim().toLowerCase() === mucNumber.trim().toLowerCase());
+    if (!row) return res.status(404).json({ error: 'Label not found for this MUC number' });
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch label by MUC number' });
+  }
+});
+
 module.exports = router; 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaUser, FaSignOutAlt, FaBuilding } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import './Header.css';
+import LowStockNotification from './LowStockNotification';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -57,9 +58,11 @@ const Header = () => {
             )}
           </div>
 
+          <LowStockNotification />
+
           {user ? (
             <div className="user-info">
-              <span className="user-name">{user.name}</span>
+              <span className="user-name">{user.name === 'Admin User' ? 'Admin' : user.name}</span>
               <button className="logout-button" onClick={handleLogout}>
                 <FaUser className="icon" />
                 <span>Logout</span>

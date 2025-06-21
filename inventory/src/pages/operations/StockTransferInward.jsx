@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaEdit, FaCamera, FaTimes } from 'react-icons/fa';
 import '../../styles/shared.css';
 import styles from './StockTransfer.module.css';
 import tableStyles from '../../styles/TableStyles.module.css';
@@ -15,11 +15,12 @@ const generateInwardNumber = (lastNumber = 0) => {
   return `BB/${currYear}-${nextYear}/IN/${num}`;
 };
 
-const StockTransferInward = ({ showForm, showList }) => {
+const StockTransferInward = ({ showForm, showList, onSwitchToForm }) => {
   const [transfers, setTransfers] = useState([]);
   const [filteredTransfers, setFilteredTransfers] = useState([]);
   const [searchMuc, setSearchMuc] = useState('');
   const [message, setMessage] = useState({ text: '', type: '' });
+  const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     mucNumber: '',
     inwardNumber: '',
@@ -46,6 +47,11 @@ const StockTransferInward = ({ showForm, showList }) => {
   const [lastInwardNumber, setLastInwardNumber] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMessage, setDialogMessage] = useState('');
+  const [showCamera, setShowCamera] = useState(false);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
 
   // Fetch last inward number for auto-increment
   useEffect(() => {
@@ -115,57 +121,52 @@ const StockTransferInward = ({ showForm, showList }) => {
     calculateTotalMm();
   }, [formData.length, formData.width, formData.thickness]);
 
-  // Fetch label details by MUC number from manual label list
+  // Fetch label details by MUC number from PDF label set
   const fetchLabelDetails = async (mucNumber) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/labels?mucNumber=${mucNumber}`);
-      if (response.data && response.data.length > 0) {
-        const label = response.data[0];
+      const response = await axios.get(`http://localhost:5000/api/pdf-labels/by-muc?mucNumber=${mucNumber}`);
+      if (response.data) {
+        const label = response.data;
         setFormData(prev => ({
           ...prev,
-          productName: label.productName || '',
-          unit: label.unit || '',
-          grade: label.gradeValue || '',
-          length: label.length || '',
-          width: label.width || '',
-          thickness: label.thickness || '',
-          totalMm: label.totalMM || '',
-          quantity: label.quantity || '',
-          bundleNumber: label.bundleNumber || ''
+          productName: label["Product Name"] || '',
+          grade: label["Grade"] || '',
+          length: label["Length"] || '',
+          width: label["Width"] || '',
+          totalMm: label["Total MM"] || '',
+          quantity: label["Number of PCS"] || '',
+          bundleNumber: '',
+          // Do not set unit or thickness since they are not in the PDF data
         }));
-        setMessage({ text: 'Label details fetched from manual label.', type: 'success' });
+        setMessage({ text: 'Label details fetched from PDF label set.', type: 'success' });
       } else {
         setFormData(prev => ({
           ...prev,
           productName: '',
-          unit: '',
           grade: '',
           length: '',
           width: '',
-          thickness: '',
           totalMm: '',
           quantity: '',
           bundleNumber: ''
         }));
-        setMessage({ text: 'This MUC number does not exist in manual label list.', type: 'error' });
-        setDialogMessage('This MUC number does not exist in manual label list.');
+        setMessage({ text: 'This MUC number does not exist in PDF label set.', type: 'error' });
+        setDialogMessage('This MUC number does not exist in PDF label set.');
         setDialogOpen(true);
       }
     } catch (err) {
       setFormData(prev => ({
         ...prev,
         productName: '',
-        unit: '',
         grade: '',
         length: '',
         width: '',
-        thickness: '',
         totalMm: '',
         quantity: '',
         bundleNumber: ''
       }));
-      setMessage({ text: 'This MUC number does not exist in manual label list.', type: 'error' });
-      setDialogMessage('This MUC number does not exist in manual label list.');
+      setMessage({ text: 'This MUC number does not exist in PDF label set.', type: 'error' });
+      setDialogMessage('This MUC number does not exist in PDF label set.');
       setDialogOpen(true);
     }
   };
@@ -179,17 +180,27 @@ const StockTransferInward = ({ showForm, showList }) => {
     }
   };
 
+  // Helper to check for duplicate MUC
+  const isDuplicateMuc = (muc) => {
+    return transfers.some(t => t.mucNumber.trim().toLowerCase() === muc.trim().toLowerCase());
+  };
+
   const handleMucBlur = () => {
     if (formData.mucNumber) {
+      if (isDuplicateMuc(formData.mucNumber)) {
+        setMessage({ text: 'This MUC number already exists in inward transfers.', type: 'error' });
+        setFormData(prev => ({ ...prev, mucNumber: '' }));
+        return;
+      }
       fetchLabelDetails(formData.mucNumber);
     }
   };
 
   useEffect(() => {
-    if (showList) {
+    if (showForm || showList) {
       fetchTransfers();
     }
-  }, [showList]);
+  }, [showForm, showList]);
 
   // Add useEffect for filtering
   useEffect(() => {
@@ -203,6 +214,45 @@ const StockTransferInward = ({ showForm, showList }) => {
     }
   }, [searchMuc, transfers]);
 
+  // Effect to handle camera stream
+  useEffect(() => {
+    if (showCamera) {
+      const enableStream = async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: 'environment',
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          });
+          streamRef.current = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        } catch (err) {
+          console.error("Error accessing camera:", err);
+          setMessage({ text: 'Could not access the camera. Please check permissions.', type: 'error' });
+          setShowCamera(false);
+        }
+      };
+      enableStream();
+    } else {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    }
+    
+    // Cleanup stream on component unmount
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [showCamera]);
+
   const fetchTransfers = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/stock-transfers-inward');
@@ -213,69 +263,75 @@ const StockTransferInward = ({ showForm, showList }) => {
     }
   };
 
+  const handleEditTransfer = (transfer) => {
+    console.log('Edit button clicked for transfer:', transfer);
+    console.log('onSwitchToForm prop:', onSwitchToForm);
+    
+    // Convert date to yyyy-MM-dd format for HTML date input
+    const formattedDate = transfer.date ? new Date(transfer.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    
+    setFormData({
+      mucNumber: transfer.mucNumber || '',
+      inwardNumber: transfer.inwardNumber || '',
+      date: formattedDate,
+      time: transfer.time || '',
+      fromLocation: transfer.fromLocation || '',
+      toLocation: transfer.toLocation || '',
+      productName: transfer.productName || '',
+      unit: transfer.unit || '',
+      grade: transfer.grade || '',
+      length: transfer.length || '',
+      width: transfer.width || '',
+      thickness: transfer.thickness || '',
+      totalMm: transfer.totalMm || '',
+      quantity: transfer.quantity || '',
+      bundleNumber: transfer.bundleNumber || '',
+      remarks: transfer.remarks || '',
+      vehicleNumber: transfer.vehicleNumber || '',
+      destination: transfer.destination || '',
+      transporter: transfer.transporter || '',
+      productPhoto: null,
+      type: 'inward'
+    });
+    setEditingId(transfer._id);
+    console.log('Form data set, editingId set to:', transfer._id);
+    
+    // Switch to form view
+    if (onSwitchToForm) {
+      console.log('Calling onSwitchToForm...');
+      onSwitchToForm();
+    } else {
+      console.log('onSwitchToForm is not available');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const submitData = new FormData();
-      
-      // Format numeric fields
-      const numericFields = ['length', 'width', 'thickness', 'totalMm', 'quantity'];
-      numericFields.forEach(field => {
-        submitData.append(field, parseFloat(formData[field]) || 0);
+      const formDataToSend = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (key === 'productPhoto' && formData[key]) {
+          formDataToSend.append(key, formData[key]);
+        } else if (key !== 'productPhoto') {
+          formDataToSend.append(key, formData[key]);
+        }
       });
 
-      // Format date
-      const formattedDate = new Date(formData.date).toISOString();
-      
-      // Add all other fields
-      submitData.append('mucNumber', formData.mucNumber);
-      submitData.append('inwardNumber', formData.inwardNumber);
-      submitData.append('date', formattedDate);
-      submitData.append('time', formData.time);
-      submitData.append('fromLocation', formData.fromLocation);
-      submitData.append('toLocation', formData.toLocation);
-      submitData.append('productName', formData.productName);
-      submitData.append('unit', formData.unit);
-      submitData.append('grade', formData.grade);
-      submitData.append('bundleNumber', formData.bundleNumber);
-      submitData.append('remarks', formData.remarks || '');
-      submitData.append('vehicleNumber', formData.vehicleNumber || '');
-      submitData.append('destination', formData.destination || '');
-      submitData.append('transporter', formData.transporter || '');
-      
-      if (formData.productPhoto) {
-        submitData.append('productPhoto', formData.productPhoto);
+      if (editingId) {
+        // Update existing transfer
+        await axios.patch(`http://localhost:5000/api/stock-transfers-inward/${editingId}`, formDataToSend);
+        toast.success('Inward transfer updated successfully!');
+        setEditingId(null);
+      } else {
+        // Create new transfer
+        await axios.post('http://localhost:5000/api/stock-transfers-inward', formDataToSend);
+        toast.success('Inward transfer created successfully!');
       }
 
-      const response = await axios.post('http://localhost:5000/api/stock-transfers-inward', submitData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      if (response.status === 201) {
-        toast.success('Transfer saved successfully!');
-        // Reset form and fetch updated data
-        fetchTransfers();
-        // Get the current highest inward number
-        const response = await axios.get('http://localhost:5000/api/stock-transfers-inward');
-        let maxNumber = 0;
-        
-        if (response.data && response.data.length > 0) {
-          response.data.forEach(transfer => {
-            const match = transfer.inwardNumber.match(/(\d{3})$/);
-            if (match) {
-              const num = parseInt(match[1], 10);
-              if (num > maxNumber) {
-                maxNumber = num;
-              }
-            }
-          });
-        }
-
-        // Reset form with next inward number
-        setLastInwardNumber(maxNumber);
+      // Reset form
         setFormData({
           mucNumber: '',
-          inwardNumber: generateInwardNumber(maxNumber),
+        inwardNumber: generateInwardNumber(lastInwardNumber),
           date: new Date().toISOString().split('T')[0],
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           fromLocation: '',
@@ -297,15 +353,11 @@ const StockTransferInward = ({ showForm, showList }) => {
           type: 'inward'
         });
 
-        setTimeout(() => {
+      fetchTransfers();
           setMessage({ text: '', type: '' });
-        }, 3000);
-      }
-    } catch (err) {
-      console.error('Error saving transfer:', err);
-      console.error('Error response:', err.response?.data);
-      const errorMessage = err.response?.data?.message || err.message;
-      toast.error(`Error saving transfer: ${errorMessage}. Please check all required fields are filled correctly.`);
+    } catch (error) {
+      console.error('Error saving transfer:', error);
+      toast.error('Error saving transfer: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -324,6 +376,46 @@ const StockTransferInward = ({ showForm, showList }) => {
         console.error('Error deleting transfer:', err);
         toast.error('Error deleting transfer');
       }
+    }
+  };
+
+  // --- Camera Control Functions ---
+
+  const handleTakePhotoClick = () => {
+    setShowCamera(true);
+  };
+
+  const handleCloseCamera = () => {
+    setShowCamera(false);
+  };
+  
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `product-photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
+          setFormData(prev => ({ ...prev, productPhoto: file }));
+          setCapturedImage(URL.createObjectURL(blob));
+          handleCloseCamera();
+          setMessage({ text: 'Photo captured successfully!', type: 'success' });
+        }
+      }, 'image/jpeg', 0.8);
+    }
+  };
+
+  const removePhoto = () => {
+    setFormData(prev => ({ ...prev, productPhoto: null }));
+    setCapturedImage(null);
+    if (capturedImage) {
+      URL.revokeObjectURL(capturedImage);
     }
   };
 
@@ -352,8 +444,8 @@ const StockTransferInward = ({ showForm, showList }) => {
         }
       `}</style>
       <div className="card">
+        <h2>{editingId ? 'Update Inward Transfer' : 'Add New Inward Transfer'}</h2>
         <form onSubmit={handleSubmit} className="form-container" encType="multipart/form-data">
-          <h2>Inward Transfer</h2>
           {message.text && (
             <div className={`message ${message.type}`}>{message.text}</div>
           )}
@@ -362,7 +454,20 @@ const StockTransferInward = ({ showForm, showList }) => {
             <div className="form-row">
               <div className="form-group">
                 <label>MUC Number*</label>
-                <input type="text" name="mucNumber" value={formData.mucNumber} onChange={handleInputChange} onBlur={handleMucBlur} required className={styles.formControl} />
+                <input type="text" name="mucNumber" value={formData.mucNumber} onChange={handleInputChange} onBlur={e => {
+                  if (!isDuplicateMuc(formData.mucNumber)) {
+                    handleMucBlur();
+                  }
+                }} required className={styles.formControl} onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === 'Tab') {
+                    if (isDuplicateMuc(formData.mucNumber)) {
+                      setMessage({ text: 'This MUC number already exists in inward transfers.', type: 'error' });
+                      setFormData(prev => ({ ...prev, mucNumber: '' }));
+                    } else {
+                      handleMucBlur();
+                    }
+                  }
+                }} />
               </div>
               <div className="form-group">
                 <label>Inward Number*</label>
@@ -439,8 +544,8 @@ const StockTransferInward = ({ showForm, showList }) => {
           <div className="form-block">
             <div className="form-row">
               <div className="form-group">
-                <label>Vehicle Number*</label>
-                <input type="text" name="vehicleNumber" value={formData.vehicleNumber} onChange={handleInputChange} required className={styles.formControl} />
+                <label>Vehicle Number</label>
+                <input type="text" name="vehicleNumber" value={formData.vehicleNumber} onChange={handleInputChange} className={styles.formControl} />
               </div>
               <div className="form-group">
                 <label>Destination*</label>
@@ -454,9 +559,127 @@ const StockTransferInward = ({ showForm, showList }) => {
               </div>
               <div className="form-group">
                 <label>Product Photo</label>
-                <input type="file" name="productPhoto" accept="image/*" onChange={handleInputChange} className={styles.formControl} />
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {!capturedImage ? (
+                    <button 
+                      type="button" 
+                      onClick={handleTakePhotoClick}
+                      className="btn-secondary"
+                      style={{ 
+                        padding: '8px 12px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <FaCamera />
+                      Take Photo
+                    </button>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <img 
+                        src={capturedImage} 
+                        alt="Captured product" 
+                        style={{ 
+                          width: '60px', 
+                          height: '60px', 
+                          objectFit: 'cover', 
+                          borderRadius: '4px',
+                          border: '1px solid #ddd'
+                        }} 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={removePhoto}
+                        className="btn-secondary"
+                        style={{ 
+                          padding: '4px 8px',
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '4px'
+                        }}
+                      >
+                        <FaTimes />
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+            
+            {/* Camera Interface */}
+            {showCamera && (
+              <div className="form-block" style={{ 
+                marginTop: '16px', 
+                padding: '16px', 
+                border: '1px solid #ddd', 
+                borderRadius: '8px',
+                backgroundColor: '#f9f9f9'
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  marginBottom: '12px' 
+                }}>
+                  <h4 style={{ margin: 0 }}>Take Product Photo</h4>
+                  <button 
+                    type="button" 
+                    onClick={handleCloseCamera}
+                    className="btn-secondary"
+                    style={{ padding: '4px 8px' }}
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+                <div style={{ 
+                  position: 'relative', 
+                  width: '100%', 
+                  maxWidth: '400px', 
+                  margin: '0 auto' 
+                }}>
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    style={{ 
+                      width: '100%', 
+                      height: 'auto', 
+                      borderRadius: '8px',
+                      border: '2px solid #ddd'
+                    }}
+                  />
+                  <canvas
+                    ref={canvasRef}
+                    style={{ display: 'none' }}
+                  />
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    gap: '12px', 
+                    marginTop: '12px' 
+                  }}>
+                    <button 
+                      type="button" 
+                      onClick={capturePhoto}
+                      className="btn-primary"
+                      style={{ 
+                        padding: '8px 16px',
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px'
+                      }}
+                    >
+                      <FaCamera />
+                      Capture Photo
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="form-row">
               <div className="form-group" style={{ flex: 1 }}>
                 <label>Remarks</label>
@@ -464,7 +687,39 @@ const StockTransferInward = ({ showForm, showList }) => {
               </div>
             </div>
           </div>
-          <button type="submit" className="btn-primary">Save Inward Transfer</button>
+          <div className="form-actions">
+            <button type="submit" className="btn-primary">
+              {editingId ? 'Update Inward Transfer' : 'Save Inward Transfer'}
+            </button>
+            <button type="button" className="btn-secondary" onClick={() => {
+              setEditingId(null);
+              setFormData({
+                mucNumber: '',
+                inwardNumber: generateInwardNumber(lastInwardNumber),
+                date: new Date().toISOString().split('T')[0],
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                fromLocation: '',
+                toLocation: '',
+                productName: '',
+                unit: '',
+                grade: '',
+                length: '',
+                width: '',
+                thickness: '',
+                totalMm: '',
+                quantity: '',
+                bundleNumber: '',
+                remarks: '',
+                vehicleNumber: '',
+                destination: '',
+                transporter: '',
+                productPhoto: null,
+                type: 'inward'
+              });
+              setCapturedImage(null);
+              setShowCamera(false);
+            }}>Cancel</button>
+          </div>
         </form>
       </div>
     </>
@@ -540,6 +795,7 @@ const StockTransferInward = ({ showForm, showList }) => {
                     <button
                       className="btn-icon"
                       onClick={() => handleDelete(transfer._id)}
+                      title="Delete"
                     >
                       <FaTrash />
                     </button>

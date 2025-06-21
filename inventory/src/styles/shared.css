@@ -61,6 +61,7 @@
 .btn-primary {
   background: #2563eb;
   color: white;
+  
 }
 
 .btn-primary:hover {
@@ -68,12 +69,25 @@
 }
 
 .btn-secondary {
-  background: #f3f4f6;
+  background-color: white;
   color: #374151;
+  border: none;
+  padding: 0.625rem 1rem;
 }
 
 .btn-secondary:hover {
-  background: #e5e7eb;
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.btn-primary:hover .btn-icon,
+.btn-secondary:hover .btn-icon {
+  color: white;
+}
+
+.btn-icon {
+  font-size: 1rem;
+  line-height: 1;
 }
 
 /* Add these styles to your existing shared.css */
@@ -161,10 +175,11 @@ textarea.form-control {
   justify-content: flex-end;
   padding-top: 1rem;
   border-top: 1px solid #e5e7eb;
+  width: 100%;
 }
 
 .btn-primary, .btn-secondary {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.625rem 1rem;
@@ -173,6 +188,7 @@ textarea.form-control {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease-in-out;
+  justify-content: center;
 }
 
 .btn-primary {
@@ -188,7 +204,7 @@ textarea.form-control {
 .btn-secondary {
   background-color: white;
   color: #374151;
-  border: 1px solid #d1d5db;
+  border: none;
 }
 
 .btn-secondary:hover {
@@ -338,11 +354,13 @@ textarea.form-control {
   margin-bottom: 20px;
   border-bottom: 1px solid #e5e7eb;
   padding-bottom: 10px;
+  justify-content: center;
 }
 
 .tab-button {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 10px 20px;
   border: none;
@@ -364,7 +382,13 @@ textarea.form-control {
 }
 
 .tab-button .btn-icon {
-  font-size: 1.1rem;
+  margin-right: 0.5rem;
+  color: #4b5563; /* Default icon color (blue-ish gray) */
+}
+
+.tab-button.active .btn-icon,
+.tab-button:hover .btn-icon {
+  color: white; /* Icon remains white when active or on hover */
 }
 
 .tab-content {
@@ -917,4 +941,40 @@ textarea.form-control {
   cursor: pointer;
   padding: 0;
   font: inherit;
+}
+
+/* Styles for Low Stock Notification Bell */
+.notification-bell {
+  background: none;
+  border: none; /* Remove border */
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out;
+}
+
+.notification-bell svg {
+  font-size: 1.5rem; /* Adjust size as needed */
+}
+
+.notification-bell.has-alert {
+  color: red; /* Red color for low stock */
+}
+
+.notification-bell.all-good {
+  color: green; /* Green color for normal stock */
+}
+
+.notification-badge {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  background-color: #ff6f61; /* Example: orange-red for badge */
+  color: white;
+  border-radius: 50%;
+  padding: 0.2em 0.5em;
+  font-size: 0.7em;
+  min-width: 1em;
+  text-align: center;
+  line-height: 1;
 }

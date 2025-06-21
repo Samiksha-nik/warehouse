@@ -55,11 +55,9 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
       'fromLocation',
       'toLocation',
       'productName',
-      'unit',
       'grade',
       'length',
       'width',
-      'thickness',
       'totalMm',
       'quantity'
     ];
@@ -72,9 +70,9 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
     }
 
     // Validate numeric fields
-    const numericFields = ['length', 'width', 'thickness', 'totalMm', 'quantity'];
+    const numericFields = ['length', 'width', 'totalMm', 'quantity'];
     const invalidNumericFields = numericFields.filter(field => 
-      isNaN(parseFloat(req.body[field])) || parseFloat(req.body[field]) <= 0
+      isNaN(parseFloat(req.body[field])) || req.body[field] === ''
     );
     
     if (invalidNumericFields.length > 0) {
@@ -94,7 +92,7 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
       grade: req.body.grade,
       length: parseFloat(req.body.length),
       width: parseFloat(req.body.width),
-      thickness: parseFloat(req.body.thickness),
+      thickness: req.body.thickness && !isNaN(parseFloat(req.body.thickness)) ? parseFloat(req.body.thickness) : undefined,
       totalMm: parseFloat(req.body.totalMm),
       quantity: parseFloat(req.body.quantity),
       bundleNumber: req.body.bundleNumber,
@@ -117,20 +115,43 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
 });
 
 // Update inward transfer
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', upload.single('productPhoto'), async (req, res) => {
   try {
     const transfer = await StockTransferInward.findById(req.params.id);
     if (!transfer) {
       return res.status(404).json({ message: 'Transfer not found' });
     }
 
-    Object.keys(req.body).forEach(key => {
-      transfer[key] = req.body[key];
-    });
+    // Update fields from req.body
+    transfer.mucNumber = req.body.mucNumber || transfer.mucNumber;
+    transfer.inwardNumber = req.body.inwardNumber || transfer.inwardNumber;
+    transfer.date = req.body.date ? new Date(req.body.date) : transfer.date;
+    transfer.time = req.body.time || transfer.time;
+    transfer.fromLocation = req.body.fromLocation || transfer.fromLocation;
+    transfer.toLocation = req.body.toLocation || transfer.toLocation;
+    transfer.productName = req.body.productName || transfer.productName;
+    transfer.unit = req.body.unit || transfer.unit;
+    transfer.grade = req.body.grade || transfer.grade;
+    transfer.length = parseFloat(req.body.length) || transfer.length;
+    transfer.width = parseFloat(req.body.width) || transfer.width;
+    transfer.thickness = parseFloat(req.body.thickness) || transfer.thickness;
+    transfer.totalMm = parseFloat(req.body.totalMm) || transfer.totalMm;
+    transfer.quantity = parseFloat(req.body.quantity) || transfer.quantity;
+    transfer.bundleNumber = req.body.bundleNumber || transfer.bundleNumber;
+    transfer.remarks = req.body.remarks || transfer.remarks;
+    transfer.vehicleNumber = req.body.vehicleNumber || transfer.vehicleNumber;
+    transfer.destination = req.body.destination || transfer.destination;
+    transfer.transporter = req.body.transporter || transfer.transporter;
+
+    // Update productPhoto if a new file is uploaded
+    if (req.file) {
+      transfer.productPhoto = req.file.filename;
+    }
 
     const updatedTransfer = await transfer.save();
     res.json(updatedTransfer);
   } catch (err) {
+    console.error('Error updating transfer:', err);
     res.status(400).json({ message: err.message });
   }
 });

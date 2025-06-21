@@ -1,18 +1,31 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaTruck } from 'react-icons/fa';
 import '../styles/shared.css';
 
 const GreetingCard = ({ name = 'Admin', dispatchCount = 0 }) => {
-  const currentHour = new Date().getHours();
-  let greeting = '';
+  const [greeting, setGreeting] = useState('');
 
-  if (currentHour < 12) {
-    greeting = 'Good Morning';
-  } else if (currentHour < 18) {
-    greeting = 'Good Afternoon';
-  } else {
-    greeting = 'Good Evening';
-  }
+  useEffect(() => {
+    const updateGreeting = () => {
+      const currentHour = new Date().getHours();
+      if (currentHour < 12) {
+        setGreeting('Good Morning');
+      } else if (currentHour < 17) {
+        setGreeting('Good Afternoon');
+      } else {
+        setGreeting('Good Evening');
+      }
+    };
+
+    // Initial update
+    updateGreeting();
+
+    // Update every minute
+    const intervalId = setInterval(updateGreeting, 60 * 1000); 
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array means this runs once on mount
 
   return (
     <div className="page-content" style={{ padding: '1.5rem' }}>

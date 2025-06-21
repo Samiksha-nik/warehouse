@@ -60,6 +60,11 @@ const dispatchSchema = new mongoose.Schema({
   notes: {
     type: String
   },
+  status: {
+    type: String,
+    enum: ['pending', 'completed', 'cancelled'],
+    default: 'pending'
+  },
   createdAt: {
     type: Date,
     default: Date.now

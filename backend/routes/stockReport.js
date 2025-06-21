@@ -123,4 +123,43 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Dashboard: Total number of MUCs in stock
+router.get('/dashboard/total-mucs-in-stock', async (req, res) => {
+  try {
+    // Get all inward MUCs
+    const inwardMUCs = await StockTransferInward.distinct('mucNumber');
+    // Get all outward MUCs
+    const outwardMUCs = await StockTransferOutward.distinct('mucNumber');
+    // Get all dispatched MUCs
+    const dispatchMUCs = await Dispatch.distinct('mucNumber');
+    // Filter to get only available MUCs (inwarded but not outwarded or dispatched)
+    const availableMUCs = inwardMUCs.filter(muc => !outwardMUCs.includes(muc) && !dispatchMUCs.includes(muc));
+    res.json({ totalMUCsInStock: availableMUCs.length });
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching total MUCs in stock', error: err.message });
+  }
+});
+
+// Dashboard: Number of items inwarded today and this week
+router.get('/dashboard/inwarded-count', async (req, res) => {
+  try {
+    const now = new Date();
+    // Today
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Start of week (Monday)
+    const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1; // Monday as start
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+
+    const inwardToday = await StockTransferInward.countDocuments({
+      date: { $gte: startOfToday, $lte: now }
+    });
+    const inwardThisWeek = await StockTransferInward.countDocuments({
+      date: { $gte: startOfWeek, $lte: now }
+    });
+    res.json({ inwardedToday: inwardToday, inwardedThisWeek: inwardThisWeek });
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching inwarded count', error: err.message });
+  }
+});
+
 module.exports = router;
