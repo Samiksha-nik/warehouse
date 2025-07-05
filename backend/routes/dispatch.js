@@ -208,13 +208,28 @@ router.get('/dashboard/dispatches-today-week', async (req, res) => {
     const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1; // Monday as start
     const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
 
+    // Count using dispatchDate if present, otherwise fallback to createdAt
     const dispatchesToday = await Dispatch.countDocuments({
-      dispatchDate: { $gte: startOfToday, $lte: now },
-      status: { $ne: 'pending' }
+      $and: [
+        { status: { $ne: 'pending' } },
+        {
+          $or: [
+            { dispatchDate: { $gte: startOfToday, $lte: now } },
+            { $and: [ { $or: [ { dispatchDate: { $exists: false } }, { dispatchDate: null } ] }, { createdAt: { $gte: startOfToday, $lte: now } } ] }
+          ]
+        }
+      ]
     });
     const dispatchesThisWeek = await Dispatch.countDocuments({
-      dispatchDate: { $gte: startOfWeek, $lte: now },
-      status: { $ne: 'pending' }
+      $and: [
+        { status: { $ne: 'pending' } },
+        {
+          $or: [
+            { dispatchDate: { $gte: startOfWeek, $lte: now } },
+            { $and: [ { $or: [ { dispatchDate: { $exists: false } }, { dispatchDate: null } ] }, { createdAt: { $gte: startOfWeek, $lte: now } } ] }
+          ]
+        }
+      ]
     });
     res.json({ dispatchesToday, dispatchesThisWeek });
   } catch (err) {

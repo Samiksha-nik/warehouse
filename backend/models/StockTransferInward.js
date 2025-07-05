@@ -45,7 +45,7 @@ const stockTransferInwardSchema = new mongoose.Schema({
   },
   totalMm: {
     type: Number,
-    required: true
+    required: false
   },
   quantity: {
     type: Number,

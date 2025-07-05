@@ -233,56 +233,6 @@ const AssignInventory = () => {
     }
   };
 
-  const handleQRCodeUpload = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      try {
-        const formDataObj = new FormData();
-        formDataObj.append('barcode', file);
-        formDataObj.append('mucNumber', formData.labelNumber); // Use the state variable
-
-        console.log('Uploading barcode file:', file.name);
-
-        const response = await fetch(`${API_URL}/labels/scan-barcode`, {
-          method: 'POST',
-          body: formDataObj
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to process barcode');
-        }
-
-        const data = await response.json();
-        console.log('Barcode data received:', data);
-
-        if (data && data.labelDetails) {
-          setFormData(prevState => ({
-            ...prevState,
-            qrCode: data.qrCode || '',
-            labelNumber: data.qrCode || '',
-            labelDetails: {
-              productName: data.labelDetails.productName || '',
-              unit: data.labelDetails.unit || '',
-              grade: data.labelDetails.grade || '',
-              length: data.labelDetails.length || '',
-              width: data.labelDetails.width || '',
-              thickness: data.labelDetails.thickness || '',
-              totalMm: data.labelDetails.totalMm || '',
-              quantity: data.labelDetails.quantity || '',
-              bundleNumber: data.labelDetails.bundleNumber || ''
-            }
-          }));
-        } else {
-          toast.error('No label details found in barcode');
-        }
-      } catch (err) {
-        console.error('Error scanning barcode:', err);
-        toast.error('Error scanning barcode: ' + err.message);
-      }
-    }
-  };
-
   const handleEditAssignment = (assignment) => {
     // Convert date to yyyy-MM-dd format for HTML date input
     const formattedDate = assignment.date ? new Date(assignment.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
@@ -515,16 +465,6 @@ const AssignInventory = () => {
                         }
                       }}
                     />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleQRCodeUpload}
-                      style={{ display: 'none' }}
-                      id="qrCodeUpload"
-                    />
-                    <label htmlFor="qrCodeUpload" className="btn-primary" style={{ color: 'white' }}>
-                      Upload Barcode
-                    </label>
                   </div>
                 </div>
 

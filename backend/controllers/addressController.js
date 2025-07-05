@@ -3,7 +3,10 @@ const Address = require('../models/Address');
 // Add new address
 exports.addAddress = async (req, res) => {
   try {
-    const address = new Address(req.body);
+    const address = new Address({
+      ...req.body,
+      customerName: req.body.customerName
+    });
     const savedAddress = await address.save();
     res.status(201).json(savedAddress); // Return the complete saved address object including _id
   } catch (error) {
@@ -14,7 +17,11 @@ exports.addAddress = async (req, res) => {
 // Get all addresses
 exports.getAddresses = async (req, res) => {
   try {
-    const addresses = await Address.find()
+    const filter = {};
+    if (req.query.customerId) {
+      filter.customer = req.query.customerId;
+    }
+    const addresses = await Address.find(filter)
       .populate('country')
       .populate('state')
       .populate('city');

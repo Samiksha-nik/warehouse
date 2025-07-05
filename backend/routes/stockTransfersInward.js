@@ -58,7 +58,6 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
       'grade',
       'length',
       'width',
-      'totalMm',
       'quantity'
     ];
 
@@ -70,10 +69,16 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
     }
 
     // Validate numeric fields
-    const numericFields = ['length', 'width', 'totalMm', 'quantity'];
+    const numericFields = ['length', 'width', 'quantity'];
     const invalidNumericFields = numericFields.filter(field => 
       isNaN(parseFloat(req.body[field])) || req.body[field] === ''
     );
+    // Only validate totalMm if present and not empty
+    if (req.body.totalMm !== undefined && req.body.totalMm !== '') {
+      if (isNaN(parseFloat(req.body.totalMm))) {
+        invalidNumericFields.push('totalMm');
+      }
+    }
     
     if (invalidNumericFields.length > 0) {
       return res.status(400).json({ 
@@ -93,7 +98,9 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
       length: parseFloat(req.body.length),
       width: parseFloat(req.body.width),
       thickness: req.body.thickness && !isNaN(parseFloat(req.body.thickness)) ? parseFloat(req.body.thickness) : undefined,
-      totalMm: parseFloat(req.body.totalMm),
+      totalMm: (req.body.totalMm !== undefined && req.body.totalMm !== '' && !isNaN(parseFloat(req.body.totalMm)))
+        ? parseFloat(req.body.totalMm)
+        : undefined,
       quantity: parseFloat(req.body.quantity),
       bundleNumber: req.body.bundleNumber,
       remarks: req.body.remarks || '',

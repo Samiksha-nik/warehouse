@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { FaTrash, FaEdit, FaCamera, FaTimes } from 'react-icons/fa';
+import { FaTrash, FaEdit, FaCamera, FaTimes, FaEye } from 'react-icons/fa';
 import '../../styles/shared.css';
 import styles from './StockTransfer.module.css';
 import tableStyles from '../../styles/TableStyles.module.css';
@@ -52,6 +52,10 @@ const StockTransferInward = ({ showForm, showList, onSwitchToForm }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+  const [groupedInward, setGroupedInward] = useState([]);
+  const [selectedOutward, setSelectedOutward] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [labels, setLabels] = useState([]);
 
   // Fetch last inward number for auto-increment
   useEffect(() => {
@@ -308,12 +312,23 @@ const StockTransferInward = ({ showForm, showList, onSwitchToForm }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Defensive: Remove totalMm if not a valid number before sending
+      const cleanedFormData = { ...formData };
+      if (
+        cleanedFormData.totalMm === '' ||
+        cleanedFormData.totalMm === undefined ||
+        cleanedFormData.totalMm === null ||
+        isNaN(Number(cleanedFormData.totalMm))
+      ) {
+        delete cleanedFormData.totalMm;
+      }
+      console.log('Submitting formData:', cleanedFormData);
       const formDataToSend = new FormData();
-      Object.keys(formData).forEach(key => {
-        if (key === 'productPhoto' && formData[key]) {
-          formDataToSend.append(key, formData[key]);
+      Object.keys(cleanedFormData).forEach(key => {
+        if (key === 'productPhoto' && cleanedFormData[key]) {
+          formDataToSend.append(key, cleanedFormData[key]);
         } else if (key !== 'productPhoto') {
-          formDataToSend.append(key, formData[key]);
+          formDataToSend.append(key, cleanedFormData[key]);
         }
       });
 
@@ -419,6 +434,30 @@ const StockTransferInward = ({ showForm, showList, onSwitchToForm }) => {
     }
   };
 
+  // Fetch labels on mount
+  useEffect(() => {
+    axios.get('http://localhost:5000/api/pdf-labels')
+      .then(res => setLabels(res.data))
+      .catch(() => setLabels([]));
+  }, []);
+
+  // Group transfers by outward number from label
+  useEffect(() => {
+    const group = {};
+    transfers.forEach(t => {
+      // Find label for this MUC number (case-insensitive, trimmed)
+      const label = labels.find(
+        l => l.mucNumber && t.mucNumber &&
+          l.mucNumber.trim().toLowerCase() === t.mucNumber.trim().toLowerCase()
+      );
+      console.log('Comparing:', t.mucNumber, 'with labels:', labels.map(l => l.mucNumber), 'Found label:', label);
+      const outwardNum = label && label.outwardNumber ? label.outwardNumber : 'Unknown';
+      if (!group[outwardNum]) group[outwardNum] = [];
+      group[outwardNum].push(t);
+    });
+    setGroupedInward(Object.entries(group));
+  }, [transfers, labels]);
+
   const renderForm = () => (
     <>
       <style>{`
@@ -520,7 +559,7 @@ const StockTransferInward = ({ showForm, showList, onSwitchToForm }) => {
               </div>
               <div className="form-group">
                 <label>Thickness*</label>
-                <input type="number" step="0.01" name="thickness" value={formData.thickness} readOnly required className={styles.formControl} />
+                <input type="number" step="0.01" name="thickness" value={formData.thickness} readOnly className={styles.formControl} />
               </div>
             </div>
             <div className="form-row">
@@ -728,76 +767,25 @@ const StockTransferInward = ({ showForm, showList, onSwitchToForm }) => {
   const renderList = () => (
     <div className="card">
       <h2>Stock Inward List</h2>
-      
-      {/* Filter row with MUC search */}
-      <div className="filter-row">
-        <div className="search-group" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
-          <input
-            type="text"
-            id="searchMuc"
-            value={searchMuc}
-            onChange={(e) => setSearchMuc(e.target.value)}
-            placeholder="Search MUC number"
-            className="form-control"
-            style={{ minWidth: 180 }}
-          />
-          <button onClick={handleMucSearch} className="btn-primary">Search</button>
-        </div>
-      </div>
-
       <div className="table-container">
-        {message.text && (
-          <div className={`message ${message.type}`}>{message.text}</div>
-        )}
         <table className="data-table">
           <thead>
             <tr>
-              <th>Date</th>
-              <th style={{ whiteSpace: 'nowrap' }}>Inward No.</th>
-              <th>MUC Number</th>
-              <th>From Location</th>
-              <th>To Location</th>
-              <th>Product Name</th>
-              <th>Unit</th>
-              <th>Grade</th>
-              <th>Length</th>
-              <th>Width</th>
-              <th>Thickness</th>
-              <th>Total MM</th>
-              <th>Quantity</th>
-              <th>Bundle Number</th>
-              <th>Actions</th>
+              <th>Outward Number</th>
+              <th>Inward Count</th>
             </tr>
           </thead>
           <tbody>
-            {filteredTransfers.length === 0 ? (
-              <tr>
-                <td colSpan="15" style={{ textAlign: 'center', color: '#888' }}>No transfers found.</td>
-              </tr>
+            {groupedInward.length === 0 ? (
+              <tr><td colSpan="2" style={{ textAlign: 'center', color: '#888' }}>No inward records found.</td></tr>
             ) : (
-              filteredTransfers.map(transfer => (
-                <tr key={transfer._id}>
-                  <td>{new Date(transfer.date).toLocaleDateString()}</td>
-                  <td style={{ whiteSpace: 'nowrap' }}>{transfer.inwardNumber}</td>
-                  <td>{transfer.mucNumber}</td>
-                  <td>{transfer.fromLocation}</td>
-                  <td>{transfer.toLocation}</td>
-                  <td className={tableStyles.productNameCell}>{transfer.productName}</td>
-                  <td>{transfer.unit}</td>
-                  <td>{transfer.grade}</td>
-                  <td>{transfer.length}</td>
-                  <td>{transfer.width}</td>
-                  <td>{transfer.thickness}</td>
-                  <td>{transfer.totalMm}</td>
-                  <td>{transfer.quantity}</td>
-                  <td>{transfer.bundleNumber}</td>
+              groupedInward.map(([outward, records]) => (
+                <tr key={outward}>
+                  <td>{outward}</td>
                   <td>
-                    <button
-                      className="btn-icon"
-                      onClick={() => handleDelete(transfer._id)}
-                      title="Delete"
-                    >
-                      <FaTrash />
+                    <button className="btn-link" style={{ color: '#1976d2', textDecoration: 'underline', cursor: 'pointer', background: 'none', border: 'none' }}
+                      onClick={() => { setSelectedOutward({ outward, records }); setShowDetailsModal(true); }}>
+                      {records.length}
                     </button>
                   </td>
                 </tr>
@@ -806,6 +794,62 @@ const StockTransferInward = ({ showForm, showList, onSwitchToForm }) => {
           </tbody>
         </table>
       </div>
+      {showDetailsModal && selectedOutward && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: 'white', padding: 24, borderRadius: 8, maxWidth: '90vw', minWidth: 900, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 22 }}>Inward Details for Outward Number: {selectedOutward.outward}</h3>
+              <button onClick={() => setShowDetailsModal(false)} style={{ fontSize: 24, background: 'none', border: 'none', cursor: 'pointer' }}>&times;</button>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table" style={{ minWidth: 1100 }}>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Inward No.</th>
+                    <th>MUC Number</th>
+                    <th>From Location</th>
+                    <th>To Location</th>
+                    <th style={{ maxWidth: 180, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>Product Name</th>
+                    <th>Unit</th>
+                    <th>Grade</th>
+                    <th>Length</th>
+                    <th>Width</th>
+                    <th>Thickness</th>
+                    <th>Total MM</th>
+                    <th>Quantity</th>
+                    <th>Bundle Number</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedOutward.records.map(transfer => (
+                    <tr key={transfer._id}>
+                      <td>{new Date(transfer.date).toLocaleDateString()}</td>
+                      <td>{transfer.inwardNumber}</td>
+                      <td>{transfer.mucNumber}</td>
+                      <td>{transfer.fromLocation}</td>
+                      <td>{transfer.toLocation}</td>
+                      <td style={{ maxWidth: 180, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{transfer.productName}</td>
+                      <td>{transfer.unit}</td>
+                      <td>{transfer.grade}</td>
+                      <td>{transfer.length}</td>
+                      <td>{transfer.width}</td>
+                      <td>{transfer.thickness}</td>
+                      <td>{transfer.totalMm}</td>
+                      <td>{transfer.quantity}</td>
+                      <td>{transfer.bundleNumber}</td>
+                      <td>
+                        <button className="btn-icon" onClick={() => handleDelete(transfer._id)} title="Delete"><FaTrash /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

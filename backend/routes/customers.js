@@ -6,7 +6,14 @@ const mongoose = require('mongoose');
 router.get('/', async (req, res) => {
   try {
     const customers = await Customer.find()
-      .populate('billingAddress')
+      .populate({
+        path: 'billingAddress',
+        populate: [
+          { path: 'country', select: 'countryName countryCode' },
+          { path: 'state', select: 'stateName stateCode' },
+          { path: 'city', select: 'cityName cityCode' }
+        ]
+      })
       .sort({ customerName: 1 }); // Sort by customer name
     res.json(customers);
   } catch (err) {
@@ -26,7 +33,14 @@ router.get('/:id', async (req, res) => {
     }
 
     const customer = await Customer.findById(req.params.id)
-      .populate('billingAddress');
+      .populate({
+        path: 'billingAddress',
+        populate: [
+          { path: 'country', select: 'countryName countryCode' },
+          { path: 'state', select: 'stateName stateCode' },
+          { path: 'city', select: 'cityName cityCode' }
+        ]
+      });
       
     if (!customer) {
       return res.status(404).json({ message: 'Customer not found' });
@@ -60,7 +74,14 @@ router.post('/add', async (req, res) => {
     
     // Populate the saved customer with related data
     const populatedCustomer = await Customer.findById(savedCustomer._id)
-      .populate('billingAddress');
+      .populate({
+        path: 'billingAddress',
+        populate: [
+          { path: 'country', select: 'countryName countryCode' },
+          { path: 'state', select: 'stateName stateCode' },
+          { path: 'city', select: 'cityName cityCode' }
+        ]
+      });
       
     res.status(201).json(populatedCustomer);
   } catch (err) {
@@ -109,7 +130,14 @@ router.post('/update/:id', async (req, res) => {
     
     // Populate the updated customer with related data
     const populatedCustomer = await Customer.findById(updatedCustomer._id)
-      .populate('billingAddress');
+      .populate({
+        path: 'billingAddress',
+        populate: [
+          { path: 'country', select: 'countryName countryCode' },
+          { path: 'state', select: 'stateName stateCode' },
+          { path: 'city', select: 'cityName cityCode' }
+        ]
+      });
       
     res.json(populatedCustomer);
   } catch (err) {

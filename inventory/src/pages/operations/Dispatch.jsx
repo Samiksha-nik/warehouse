@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import '../../styles/shared.css';
-import { FaTrash, FaEdit, FaQrcode } from 'react-icons/fa';
+import { FaTrash, FaEdit, FaQrcode, FaTruck } from 'react-icons/fa';
 import { debounce } from 'lodash';
 import { toast } from 'react-toastify';
 
@@ -16,10 +16,104 @@ const getCurrentFinancialYear = () => {
   }
 };
 
+const styles = `
+  .container {
+    padding: 20px;
+    max-width: 100%;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .tab {
+    padding: 10px 20px;
+    border: none;
+    background: #f0f0f0;
+    cursor: pointer;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  .tab.active {
+    background: #007bff;
+    color: white;
+  }
+
+  .content-section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .table-container {
+    overflow-x: auto;
+    margin-top: 20px;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .data-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+  }
+
+  .data-table tr:hover {
+    background-color: #f5f5f5;
+  }
+
+  .dispatch-button {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 16px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .dispatch-button:hover {
+    background-color: #218838;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 20px;
+    font-style: italic;
+    color: #666;
+  }
+
+  .error {
+    color: #dc3545;
+    padding: 10px;
+    margin: 10px 0;
+    background-color: #f8d7da;
+    border-radius: 4px;
+  }
+`;
+
 const Dispatch = () => {
-  const [activeTab, setActiveTab] = useState('form');
+  const [activeTab, setActiveTab] = useState('outward');
   const [customers, setCustomers] = useState([]);
   const [dispatches, setDispatches] = useState([]);
+  const [outwardTransfers, setOutwardTransfers] = useState([]);
   const [formData, setFormData] = useState({
     mucNumber: '',
     productName: '',
@@ -42,7 +136,8 @@ const Dispatch = () => {
     invoice: null,
     qrCode: null,
     address: '',
-    marketplace: ''
+    marketplace: '',
+    vehicleNumber: ''
   });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -62,6 +157,9 @@ const Dispatch = () => {
         time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }));
       generateDispatchNo();
+    }
+    if (activeTab === 'outward') {
+      fetchOutwardTransfers();
     }
   }, [activeTab]);
 
@@ -193,10 +291,18 @@ const Dispatch = () => {
     if (name === 'invoice' || name === 'productPhoto') {
       setFormData(prev => ({ ...prev, [name]: files[0] }));
     } else {
-      // Removed console.log statements to declutter
       setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
+
+  useEffect(() => {
+    // Only require fields that are filled by the user, not read-only/blank fields
+    const requiredFields = [
+      'mucNumber', 'fromLocation', 'toLocation', 'customer', 'orderId', 'vehicleNumber'
+    ];
+    const allFilled = requiredFields.every(field => formData[field]);
+    setProductValid(allFilled);
+  }, [formData]);
 
   const handleFileChange = async (e) => {
     const { name, files } = e.target;
@@ -366,8 +472,14 @@ const Dispatch = () => {
       data.append('grade', formData.grade);
       data.append('length', Number(formData.length));
       data.append('width', Number(formData.width));
-      data.append('thickness', Number(formData.thickness));
-      data.append('totalMm', Number(formData.totalMm));
+      // Only append thickness if valid
+      if (formData.thickness !== '' && formData.thickness !== undefined && formData.thickness !== null && !isNaN(Number(formData.thickness))) {
+        data.append('thickness', Number(formData.thickness));
+      }
+      // Only append totalMm if valid
+      if (formData.totalMm !== '' && formData.totalMm !== undefined && formData.totalMm !== null && !isNaN(Number(formData.totalMm))) {
+        data.append('totalMm', Number(formData.totalMm));
+      }
       data.append('quantity', Number(formData.quantity));
       data.append('bundleNumber', formData.bundleNumber);
       data.append('fromLocation', formData.fromLocation);
@@ -379,7 +491,7 @@ const Dispatch = () => {
       data.append('orderId', formData.orderId);
       data.append('address', formData.address);
       data.append('marketplace', formData.marketplace);
-      if (formData.invoice) data.append('invoice', formData.invoice);
+      data.append('vehicleNumber', formData.vehicleNumber);
       if (formData.productPhoto) data.append('productPhoto', formData.productPhoto);
 
       await axios.post('http://localhost:5000/api/dispatch', data, {
@@ -405,8 +517,8 @@ const Dispatch = () => {
         time: '',
         customer: '',
         orderId: '',
-        invoice: null,
-        productPhoto: null
+        productPhoto: null,
+        vehicleNumber: ''
       });
       fetchDispatches();
     } catch (err) {
@@ -424,18 +536,180 @@ const Dispatch = () => {
     }
   };
 
+  const fetchOutwardTransfers = async () => {
+    try {
+      setLoading(true);
+      const outwardResponse = await axios.get('http://localhost:5000/api/stockTransfersOutward');
+      setOutwardTransfers(outwardResponse.data);
+      setError(null);
+    } catch (err) {
+      setError('Error fetching outward transfers: ' + err.message);
+      toast.error('Failed to fetch outward transfers');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDispatchClick = async (mucNumber) => {
+    try {
+      setLoading(true);
+      // Fetch outward data
+      const mucResponse = await axios.get(`http://localhost:5000/api/stockTransfersOutward/muc/${mucNumber}`);
+      const outwardData = mucResponse.data;
+
+      // Fetch assignment data for marketplace, orderId, thickness, totalMm
+      let marketplace = '';
+      let orderId = '';
+      let thickness = outwardData.thickness;
+      let totalMm = outwardData.totalMm;
+      try {
+        const assignmentResponse = await axios.get(`http://localhost:5000/api/assignments?labelNumber=${mucNumber}`);
+        const assignment = assignmentResponse.data && assignmentResponse.data.length > 0 ? assignmentResponse.data[0] : null;
+        if (assignment) {
+          marketplace = assignment.marketplace || '';
+          orderId = assignment.orderId || '';
+          // Try to get thickness and totalMm from assignment.labelDetails if not present in outward
+          if ((!thickness || thickness === '') && assignment.labelDetails?.thickness) {
+            thickness = assignment.labelDetails.thickness;
+          }
+          if ((!totalMm || totalMm === '') && assignment.labelDetails?.totalMm) {
+            totalMm = assignment.labelDetails.totalMm;
+          }
+        }
+      } catch (err) {
+        // If assignment fetch fails, just leave as is
+        console.warn('Could not fetch assignment for marketplace/orderId/thickness/totalMm:', err);
+      }
+
+      // Populate form data
+      setFormData(prev => ({
+        ...prev,
+        mucNumber: outwardData.mucNumber,
+        productName: outwardData.productName,
+        unit: outwardData.unit,
+        grade: outwardData.grade,
+        length: outwardData.length,
+        width: outwardData.width,
+        thickness: thickness,
+        totalMm: totalMm,
+        quantity: outwardData.quantity,
+        bundleNumber: outwardData.bundleNumber,
+        fromLocation: outwardData.fromLocation,
+        toLocation: outwardData.toLocation,
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        marketplace,
+        orderId,
+        customer: outwardData.customerName || '',
+        customerName: outwardData.customerName || '',
+        address: outwardData.address || '',
+        productPhoto: prev.productPhoto, // preserve already uploaded photo if present
+        vehicleNumber: prev.vehicleNumber // preserve already entered vehicle number
+      }));
+      setTimeout(() => setProductValid(true), 0); // ensure productValid is set after formData update
+
+      // Switch to form tab
+      setActiveTab('form');
+      toast.success('Outward transfer details loaded successfully');
+    } catch (err) {
+      setError('Error fetching outward transfer details: ' + err.message);
+      toast.error('Failed to load outward transfer details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="page-container">
-      <div className='page-content card'>
-      <div className="page-header">
-        <h1>Dispatch</h1>
-      </div>
-      <div className="tabs">
-        <button className={`tab-button ${activeTab === 'form' ? 'active' : ''}`} onClick={() => { setActiveTab('form'); }}>Create Dispatch</button>
-        <button className={`tab-button ${activeTab === 'list' ? 'active' : ''}`} onClick={() => setActiveTab('list')}>Dispatch List</button>
-      </div>
-      <div className="tab-content">
-        {activeTab === 'form' ? (
+    <>
+      <style>{styles}</style>
+      <div className="container">
+        <div className="tabs">
+          <button
+            className={`tab ${activeTab === 'outward' ? 'active' : ''}`}
+            onClick={() => setActiveTab('outward')}
+          >
+            Outward Transfers
+          </button>
+          <button
+            className={`tab ${activeTab === 'form' ? 'active' : ''}`}
+            onClick={() => setActiveTab('form')}
+          >
+            Create Dispatch
+          </button>
+          <button
+            className={`tab ${activeTab === 'list' ? 'active' : ''}`}
+            onClick={() => setActiveTab('list')}
+          >
+            Dispatch List
+          </button>
+        </div>
+
+        {activeTab === 'outward' && (
+          <div className="content-section">
+            <h2>Outward Transfers Available for Dispatch</h2>
+            {loading && <div className="loading">Loading...</div>}
+            {error && <div className="error">{error}</div>}
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>MUC Number</th>
+                    <th>Date</th>
+                    <th>Product Name</th>
+                    <th>From Location</th>
+                    <th>To Location</th>
+                    <th>Quantity</th>
+                    <th>Invoice</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {outwardTransfers.map((transfer) => {
+                    const dispatched = dispatches.some(d => d.mucNumber === transfer.mucNumber && d.status === 'completed');
+                    return (
+                      <tr key={transfer._id}>
+                        <td>{transfer.mucNumber}</td>
+                        <td>{new Date(transfer.date).toLocaleDateString()}</td>
+                        <td>{transfer.productName}</td>
+                        <td>{transfer.fromLocation}</td>
+                        <td>{transfer.toLocation}</td>
+                        <td>{transfer.quantity}</td>
+                        <td>
+                          {transfer.invoice ? (
+                            <a
+                              href={`http://localhost:5000/uploads/${transfer.invoice}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="invoice-link"
+                            >
+                              View Invoice
+                            </a>
+                          ) : (
+                            <span style={{ color: '#888' }}>No Invoice</span>
+                          )}
+                        </td>
+                        <td>
+                          {dispatched ? (
+                            <button className="action-button dispatch-button" disabled style={{ backgroundColor: '#aaa', cursor: 'not-allowed' }}>Dispatched</button>
+                          ) : (
+                            <button
+                              className="action-button dispatch-button"
+                              onClick={() => handleDispatchClick(transfer.mucNumber)}
+                            >
+                              <FaTruck /> Dispatch
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'form' && (
           <form onSubmit={handleSubmit} className="form-container">
             <h2>Create Dispatch</h2>
             <div className="form-block">
@@ -594,38 +868,42 @@ const Dispatch = () => {
                 </div>
               </div>
             </div>
-            <div className="form-block">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Invoice</label>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Vehicle Number*</label>
+                <input
+                  type="text"
+                  name="vehicleNumber"
+                  value={formData.vehicleNumber || ''}
+                  onChange={handleInputChange}
+                  className="form-input"
+                  required
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Product Photo</label>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
                   <input
                     type="file"
-                    name="invoice"
+                    name="productPhoto"
                     onChange={handleInputChange}
                     className="form-input"
+                    style={{ flex: 1, marginRight: '10px' }}
+                    accept="image/*"
+                    capture="camera"
+                    ref={productPhotoInputRef}
                   />
-                </div>
-                <div className="form-group">
-                  <label>Product Photo</label>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <input
-                      type="file"
-                      name="productPhoto"
-                      onChange={handleInputChange}
-                      className="form-input"
-                      style={{ flex: 1, marginRight: '10px' }}
-                      accept="image/*"
-                      capture="camera"
-                      ref={productPhotoInputRef}
-                    />
-                    <button type="button" className="btn-secondary" onClick={handleScanPhoto}>Scan Photo</button>
-                  </div>
+                  <button type="button" className="btn-secondary" onClick={handleScanPhoto}>Scan Photo</button>
                 </div>
               </div>
             </div>
-            <button type="submit" className="btn-primary" disabled={!productValid || !formData.mucNumber || !formData.productName || !formData.unit || !formData.grade || !formData.length || !formData.width || !formData.thickness || !formData.totalMm || !formData.quantity || !formData.fromLocation || !formData.toLocation || !formData.invoice || !formData.productPhoto || !formData.customer || !formData.orderId}>Save Dispatch</button>
+            <button type="submit" className="btn-primary" disabled={!productValid}>Save Dispatch</button>
           </form>
-        ) : (
+        )}
+
+        {activeTab === 'list' && (
           <div className="card">
             <h2>Dispatch List</h2>
             {loading ? <p>Loading...</p> : error ? <p className="error">{error}</p> : (
@@ -641,7 +919,6 @@ const Dispatch = () => {
                       <th>Order ID</th>
                       <th>Marketplace</th>
                       <th>Status</th>
-                      <th>Invoice PDF</th>
                       <th style={{ textAlign: 'center', width: 80 }}>Actions</th>
                     </tr>
                   </thead>
@@ -675,19 +952,6 @@ const Dispatch = () => {
                           </select>
                         </td>
                         <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
-                          {dispatch.invoiceUrl ? (
-                            <button
-                              className="view-link"
-                              onClick={() => window.open(`http://localhost:5000/${dispatch.invoiceUrl}`, '_blank', 'noopener,noreferrer')}
-                              title="View Invoice PDF"
-                              type="button"
-                              style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: 500 }}
-                            >
-                              View
-                            </button>
-                          ) : '-'}
-                        </td>
-                        <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                           <button className="btn-icon" title="Delete" onClick={() => handleDeleteDispatch(dispatch._id)}>
                             <FaTrash />
                           </button>
@@ -701,8 +965,7 @@ const Dispatch = () => {
           </div>
         )}
       </div>
-      </div>
-    </div>
+    </>
   );
 };
 

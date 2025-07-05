@@ -5,6 +5,9 @@ const path = require('path');
 const fs = require('fs');
 const pdfParse = require('pdf-parse');
 const PdfLabelSet = require('../models/PdfLabelSet');
+const StockTransferInward = require('../models/StockTransferInward');
+const StockTransferOutward = require('../models/StockTransferOutward');
+const Return = require('../models/Return');
 
 const upload = multer({ dest: path.join(__dirname, '../uploads/') });
 
@@ -63,11 +66,15 @@ router.post('/upload', upload.single('pdf'), async (req, res) => {
 // Save a set of extracted label rows
 router.post('/save', async (req, res) => {
   try {
-    const { rows } = req.body;
+    const { rows, outwardNo, date } = req.body;
     if (!Array.isArray(rows) || rows.length === 0) {
       return res.status(400).json({ error: 'No rows to save.' });
     }
-    const labelSet = new PdfLabelSet({ rows });
+    const labelSet = new PdfLabelSet({
+      rows,
+      outwardNo: outwardNo || '',
+      date: date ? new Date(date) : undefined
+    });
     await labelSet.save();
     res.json({ message: 'Label set saved successfully.' });
   } catch (err) {
@@ -113,6 +120,85 @@ router.get('/by-muc', async (req, res) => {
     res.json(row);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch label by MUC number' });
+  }
+});
+
+// Extract Outward No and Date from delivery chalan PDF
+router.post('/extract-outward-info', upload.single('pdf'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const fs = require('fs');
+  const pdfParse = require('pdf-parse');
+  try {
+    const dataBuffer = fs.readFileSync(req.file.path);
+    const data = await pdfParse(dataBuffer);
+    const text = data.text;
+
+    // Log the extracted text for debugging
+    console.log('--- Extracted PDF Text ---');
+    console.log(text);
+    console.log('--- End of Extracted PDF Text ---');
+
+    // Improved regex: allow for any whitespace and extra dashes/spaces in the date
+    const regex = /Outword\s*No\s*:\s*([A-Z0-9\s\/-]+)\s*Date\s*:?-*\s*([\d]{1,2}-[A-Za-z]{3}\s*-*\s*[\d]{4})/i;
+    const match = text.match(regex);
+    if (match) {
+      const outwardNo = match[1].replace(/\s+/g, ' ').trim();
+      let date = match[2].replace(/\s*-+\s*/, '-').replace(/\s+/g, '').trim();
+      // Format date as DD-MMM-YYYY
+      const dateParts = date.match(/(\d{1,2})-([A-Za-z]{3})-(\d{4})/);
+      if (dateParts) {
+        date = `${dateParts[1]}-${dateParts[2]}-${dateParts[3]}`;
+      }
+      res.json({ outwardNo, date });
+    } else {
+      res.status(400).json({ error: 'Could not find Outward No and Date in PDF.' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to parse PDF' });
+  } finally {
+    fs.unlinkSync(req.file.path); // Clean up uploaded file
+  }
+});
+
+// POST /muc-status: Given a list of MUCs, return their inward, outward, and return status with product details
+router.post('/muc-status', async (req, res) => {
+  try {
+    const { mucs } = req.body;
+    if (!Array.isArray(mucs) || mucs.length === 0) {
+      return res.status(400).json({ error: 'No MUCs provided.' });
+    }
+    // Find all inwarded MUCs
+    const inward = await StockTransferInward.find({ mucNumber: { $in: mucs } });
+    // Find all outwarded MUCs
+    const outward = await StockTransferOutward.find({ mucNumber: { $in: mucs } });
+    // Find all returned MUCs
+    const returned = await Return.find({ labelNumber: { $in: mucs } });
+    res.json({
+      inward,
+      outward,
+      returned
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch MUC status.' });
+  }
+});
+
+// Get all label rows (for MUC/Outward mapping)
+router.get('/', async (req, res) => {
+  try {
+    const sets = await PdfLabelSet.find();
+    // Flatten all rows and attach outwardNumber (outwardNo) and mucNumber to each row
+    const allRows = sets.flatMap(set =>
+      (set.rows || []).map(row => ({
+        ...row,
+        mucNumber: row["Label Number"] || '',
+        outwardNumber: set.outwardNo || '',
+        date: set.date || '',
+      }))
+    );
+    res.json(allRows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch label rows.' });
   }
 });
 

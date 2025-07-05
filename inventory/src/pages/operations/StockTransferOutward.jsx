@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { FaTrash, FaEdit, FaCamera, FaTimes } from 'react-icons/fa';
+import { FaTrash, FaEdit, FaCamera, FaTimes, FaEye } from 'react-icons/fa';
 import '../../styles/shared.css';
 import { toast } from 'react-toastify';
 import tableStyles from '../../styles/TableStyles.module.css';
@@ -41,10 +41,12 @@ const StockTransferOutward = ({ showForm, showList }) => {
     bundleNumber: '',
     remarks: '',
     type: 'outward',
-    vehicleNumber: '',
     destination: '',
     transporter: '',
-    productPhoto: null
+    productPhoto: null,
+    invoice: null,
+    customerName: '',
+    address: ''
   });
   const [mucValid, setMucValid] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -60,6 +62,11 @@ const StockTransferOutward = ({ showForm, showList }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+
+  const [groupedOutward, setGroupedOutward] = useState([]);
+  const [selectedOutward, setSelectedOutward] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [labels, setLabels] = useState([]);
 
   useEffect(() => {
     if (showList) {
@@ -157,7 +164,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
 
     try {
       // Check if this MUC number is already used in outward transfers
-      const outwardResponse = await axios.get(`http://localhost:5000/api/stock-transfers-outward/check-muc/${mucNumber}`);
+      const outwardResponse = await axios.get(`http://localhost:5000/api/stockTransfersOutward/check-muc/${mucNumber}`);
       if (outwardResponse.data.exists) {
         toast.error('This MUC number is already used in an outward transfer. Please enter a unique MUC number.');
         setDialogMessage('This MUC number is already used in an outward transfer. Please enter a unique MUC number.');
@@ -245,6 +252,8 @@ const StockTransferOutward = ({ showForm, showList }) => {
     const { name, value, files } = e.target;
     if (name === 'productPhoto') {
       setFormData(prev => ({ ...prev, productPhoto: files[0] }));
+    } else if (name === 'invoice') {
+      setFormData(prev => ({ ...prev, invoice: files[0] }));
     } else {
       if (name === 'mucNumber') {
         // Just update the value without fetching
@@ -277,7 +286,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
 
   const fetchTransfers = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/stock-transfers-outward');
+      const response = await axios.get('http://localhost:5000/api/stockTransfersOutward');
       setTransfers(response.data);
       setFilteredTransfers(response.data);
       setOutwardTransfers(response.data);
@@ -306,23 +315,27 @@ const StockTransferOutward = ({ showForm, showList }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const transferData = {
-        ...formData,
-        date: formData.date,
-        time: formData.time,
-        length: Number(formData.length),
-        width: Number(formData.width),
-        thickness: Number(formData.thickness),
-        totalMm: Number(formData.totalMm),
-        quantity: Number(formData.quantity),
-      };
+      const form = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          form.append(key, value);
+        }
+      });
 
       let response;
       if (editingId) {
-        response = await axios.patch(`http://localhost:5000/api/stock-transfers-outward/${editingId}`, transferData);
+        response = await axios.patch(
+          `http://localhost:5000/api/stockTransfersOutward/${editingId}`,
+          form,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
         toast.success('Outward Transfer updated successfully!');
       } else {
-        response = await axios.post('http://localhost:5000/api/stock-transfers-outward', transferData);
+        response = await axios.post(
+          'http://localhost:5000/api/stockTransfersOutward',
+          form,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
         toast.success('Outward Transfer created successfully!');
       }
 
@@ -343,10 +356,12 @@ const StockTransferOutward = ({ showForm, showList }) => {
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         remarks: '',
         type: 'outward',
-        vehicleNumber: '',
         destination: '',
         transporter: '',
-        productPhoto: null
+        productPhoto: null,
+        invoice: null,
+        customerName: '',
+        address: ''
       });
       setEditingId(null);
       fetchTransfers();
@@ -361,7 +376,7 @@ const StockTransferOutward = ({ showForm, showList }) => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this transfer?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/stock-transfers-outward/${id}`);
+        await axios.delete(`http://localhost:5000/api/stockTransfersOutward/${id}`);
         toast.success('Transfer deleted successfully!');
         fetchTransfers();
       } catch (err) {
@@ -389,17 +404,19 @@ const StockTransferOutward = ({ showForm, showList }) => {
       time: transfer.time || '',
       remarks: transfer.remarks || '',
       type: transfer.type || 'outward',
-      vehicleNumber: transfer.vehicleNumber || '',
       destination: transfer.destination || '',
       transporter: transfer.transporter || '',
-      productPhoto: null
+      productPhoto: null,
+      invoice: null,
+      customerName: transfer.customerName || '',
+      address: transfer.address || ''
     });
   };
 
   const handleDeleteTransfer = async (id) => {
     if (window.confirm('Are you sure you want to delete this transfer?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/stock-transfers-outward/${id}`);
+        await axios.delete(`http://localhost:5000/api/stockTransfersOutward/${id}`);
         toast.success('Transfer deleted successfully!');
         fetchTransfers();
       } catch (err) {
@@ -447,6 +464,29 @@ const StockTransferOutward = ({ showForm, showList }) => {
     }
   };
 
+  // Fetch labels on mount
+  useEffect(() => {
+    axios.get('http://localhost:5000/api/pdf-labels')
+      .then(res => setLabels(res.data))
+      .catch(() => setLabels([]));
+  }, []);
+
+  // Group transfers by outward number from label
+  useEffect(() => {
+    const group = {};
+    transfers.forEach(t => {
+      // Find label for this MUC number (case-insensitive, trimmed)
+      const label = labels.find(
+        l => l.mucNumber && t.mucNumber &&
+          l.mucNumber.trim().toLowerCase() === t.mucNumber.trim().toLowerCase()
+      );
+      const outwardNum = label && label.outwardNumber ? label.outwardNumber : 'Unknown';
+      if (!group[outwardNum]) group[outwardNum] = [];
+      group[outwardNum].push(t);
+    });
+    setGroupedOutward(Object.entries(group));
+  }, [transfers, labels]);
+
   const renderForm = () => (
     <>
       <style>{`
@@ -475,6 +515,26 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 onChange={handleInputChange}
                 onBlur={handleMucBlur}
                 onKeyDown={handleKeyDown}
+              />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Customer Name*</label>
+              <input
+                type="text"
+                name="customerName"
+                value={formData.customerName}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Address*</label>
+              <textarea
+                name="address"
+                value={formData.address}
+                onChange={handleInputChange}
                 required
               />
             </div>
@@ -497,7 +557,6 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 name="fromLocation"
                 value={formData.fromLocation}
                 onChange={handleInputChange}
-                required
               />
             </div>
             <div className="form-group">
@@ -507,7 +566,6 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 name="toLocation"
                 value={formData.toLocation}
                 onChange={handleInputChange}
-                required
               />
             </div>
           </div>
@@ -522,7 +580,6 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 name="productName"
                 value={formData.productName}
                 readOnly
-                required
               />
             </div>
             <div className="form-group">
@@ -532,7 +589,6 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 name="unit"
                 value={formData.unit}
                 readOnly
-                required
               />
             </div>
           </div>
@@ -544,7 +600,6 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 name="grade"
                 value={formData.grade}
                 readOnly
-                required
               />
             </div>
             <div className="form-group">
@@ -555,7 +610,6 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 name="length"
                 value={formData.length}
                 readOnly
-                required
               />
             </div>
           </div>
@@ -568,7 +622,6 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 name="width"
                 value={formData.width}
                 readOnly
-                required
               />
             </div>
             <div className="form-group">
@@ -579,7 +632,6 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 name="thickness"
                 value={formData.thickness}
                 readOnly
-                required
               />
             </div>
           </div>
@@ -592,7 +644,6 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 name="totalMm"
                 value={formData.totalMm}
                 readOnly
-                required
               />
             </div>
             <div className="form-group">
@@ -603,7 +654,6 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 name="quantity"
                 value={formData.quantity}
                 readOnly
-                required
               />
             </div>
           </div>
@@ -624,22 +674,12 @@ const StockTransferOutward = ({ showForm, showList }) => {
         <div className="form-block">
           <div className="form-row">
             <div className="form-group">
-              <label>Vehicle Number</label>
-              <input
-                type="text"
-                name="vehicleNumber"
-                value={formData.vehicleNumber}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="form-group">
               <label>Destination*</label>
               <input
                 type="text"
                 name="destination"
                 value={formData.destination}
                 onChange={handleInputChange}
-                required
               />
             </div>
           </div>
@@ -651,7 +691,16 @@ const StockTransferOutward = ({ showForm, showList }) => {
                 name="transporter"
                 value={formData.transporter}
                 onChange={handleInputChange}
-                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Invoice</label>
+              <input
+                type="file"
+                name="invoice"
+                onChange={handleInputChange}
+                className="form-input"
+                accept="application/pdf"
               />
             </div>
             <div className="form-group">
@@ -799,84 +848,102 @@ const StockTransferOutward = ({ showForm, showList }) => {
   const renderList = () => (
     <div className="card">
       <h2>Stock Outward List</h2>
-      
-      {/* Filter row with MUC search */}
-      <div className="filter-row">
-        <div className="search-group" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
-          <input
-            type="text"
-            id="searchMuc"
-            value={searchMuc}
-            onChange={(e) => setSearchMuc(e.target.value)}
-            placeholder="Search MUC number"
-            className="form-control"
-            style={{ minWidth: 180 }}
-          />
-          <button onClick={handleMucSearch} className="btn-primary">Search</button>
-        </div>
-      </div>
-
       <div className="table-container">
-        {message.text && (
-          <div className={`message ${message.type}`}>{message.text}</div>
-        )}
         <table className="data-table">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>MUC Number</th>
-              <th>From Location</th>
-              <th>To Location</th>
-              <th>Product Name</th>
-              <th>Unit</th>
-              <th>Grade</th>
-              <th>Length</th>
-              <th>Width</th>
-              <th>Thickness</th>
-              <th>Total MM</th>
-              <th>Quantity</th>
-              <th>Bundle Number</th>
-              <th>Actions</th>
+              <th>Outward Number</th>
+              <th>Outward Count</th>
             </tr>
           </thead>
           <tbody>
-            {filteredTransfers.length === 0 ? (
-              <tr>
-                <td colSpan="15" style={{ textAlign: 'center', color: '#888' }}>No transfers found.</td>
-              </tr>
+            {groupedOutward.length === 0 ? (
+              <tr><td colSpan="2" style={{ textAlign: 'center', color: '#888' }}>No outward records found.</td></tr>
             ) : (
-              filteredTransfers.map(transfer => {
-                return (
-                  <tr key={transfer._id}>
-                    <td>{transfer.date ? new Date(transfer.date).toLocaleDateString() : ''}</td>
-                    <td>{transfer.mucNumber || ''}</td>
-                    <td>{transfer.fromLocation || ''}</td>
-                    <td>{transfer.toLocation || ''}</td>
-                    <td className={tableStyles.productNameCell}>{transfer.productName || ''}</td>
-                    <td>{transfer.unit || ''}</td>
-                    <td>{transfer.grade || ''}</td>
-                    <td>{transfer.length || ''}</td>
-                    <td>{transfer.width || ''}</td>
-                    <td>{transfer.thickness || ''}</td>
-                    <td>{transfer.totalMm || ''}</td>
-                    <td>{transfer.quantity || ''}</td>
-                    <td>{transfer.bundleNumber || ''}</td>
-                    <td>
-                      <button
-                        className="btn-icon"
-                        onClick={() => handleDelete(transfer._id)}
-                        title="Delete"
-                      >
-                        <FaTrash />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
+              groupedOutward.map(([outward, records]) => (
+                <tr key={outward}>
+                  <td>{outward}</td>
+                  <td>
+                    <button className="btn-link" style={{ color: '#1976d2', textDecoration: 'underline', cursor: 'pointer', background: 'none', border: 'none' }}
+                      onClick={() => { setSelectedOutward({ outward, records }); setShowDetailsModal(true); }}>
+                      {records.length}
+                    </button>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
       </div>
+      {showDetailsModal && selectedOutward && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: 'white', padding: 24, borderRadius: 8, maxWidth: '90vw', minWidth: 900, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 22 }}>Outward Details for Outward Number: {selectedOutward.outward}</h3>
+              <button onClick={() => setShowDetailsModal(false)} style={{ fontSize: 24, background: 'none', border: 'none', cursor: 'pointer' }}>&times;</button>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table" style={{ minWidth: 1100 }}>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>MUC Number</th>
+                    <th>From Location</th>
+                    <th>To Location</th>
+                    <th style={{ maxWidth: 180, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>Product Name</th>
+                    <th>Unit</th>
+                    <th>Grade</th>
+                    <th>Length</th>
+                    <th>Width</th>
+                    <th>Thickness</th>
+                    <th>Total MM</th>
+                    <th>Quantity</th>
+                    <th>Bundle Number</th>
+                    <th>Invoice</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedOutward.records.map(transfer => (
+                    <tr key={transfer._id}>
+                      <td>{transfer.date ? new Date(transfer.date).toLocaleDateString() : ''}</td>
+                      <td>{transfer.mucNumber || ''}</td>
+                      <td>{transfer.fromLocation || ''}</td>
+                      <td>{transfer.toLocation || ''}</td>
+                      <td style={{ maxWidth: 180, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{transfer.productName || ''}</td>
+                      <td>{transfer.unit || ''}</td>
+                      <td>{transfer.grade || ''}</td>
+                      <td>{transfer.length || ''}</td>
+                      <td>{transfer.width || ''}</td>
+                      <td>{transfer.thickness || ''}</td>
+                      <td>{transfer.totalMm || ''}</td>
+                      <td>{transfer.quantity || ''}</td>
+                      <td>{transfer.bundleNumber || ''}</td>
+                      <td>
+                        {transfer.invoice ? (
+                          <a
+                            href={`http://localhost:5000/uploads/${transfer.invoice}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: '#007bff', textDecoration: 'underline' }}
+                          >
+                            View Invoice
+                          </a>
+                        ) : (
+                          <span style={{ color: '#888' }}>No Invoice</span>
+                        )}
+                      </td>
+                      <td>
+                        <button className="btn-icon" onClick={() => handleDelete(transfer._id)} title="Delete"><FaTrash /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

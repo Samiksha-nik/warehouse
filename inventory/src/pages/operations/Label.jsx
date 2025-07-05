@@ -27,12 +27,37 @@ const Label = () => {
     const [saving, setSaving] = useState(false);
     const [success, setSuccess] = useState('');
     const [dragActive, setDragActive] = useState(false);
+    const [outwardInfo, setOutwardInfo] = useState({ outwardNo: '', date: '' });
+    const [showMucs, setShowMucs] = useState({ open: false, mucs: [], title: '' });
+    const [mucStatus, setMucStatus] = useState({});
 
     useEffect(() => {
         if (activeTab === 'list') {
             fetchSavedTables();
         }
     }, [activeTab]);
+
+    useEffect(() => {
+        const fetchAllMucStatus = async () => {
+            if (!savedTables.length) return;
+            const statusObj = {};
+            for (const set of savedTables) {
+                const mucs = set.rows.map(row => row["Label Number"]);
+                try {
+                    const res = await axios.post('/pdf-labels/muc-status', { mucs });
+                    statusObj[set._id] = {
+                        inward: res.data.inward || [],
+                        outward: res.data.outward || [],
+                        returned: res.data.returned || []
+                    };
+                } catch (e) {
+                    statusObj[set._id] = { inward: [], outward: [], returned: [] };
+                }
+            }
+            setMucStatus(statusObj);
+        };
+        fetchAllMucStatus();
+    }, [savedTables]);
 
     const fetchSavedTables = async () => {
         try {
@@ -67,6 +92,7 @@ const Label = () => {
         setLoading(true);
         setError('');
         setTableData([]);
+        setOutwardInfo({ outwardNo: '', date: '' });
         try {
             const formData = new FormData();
             formData.append('pdf', selectedFile);
@@ -74,8 +100,15 @@ const Label = () => {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
             setTableData(response.data.data || []);
+            const outwardRes = await axios.post('/pdf-labels/extract-outward-info', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            setOutwardInfo({
+                outwardNo: outwardRes.data.outwardNo || '',
+                date: outwardRes.data.date || ''
+            });
         } catch (err) {
-            setError('Failed to extract data from PDF.');
+            setError('Failed to extract data or outward info from PDF.');
         } finally {
             setLoading(false);
         }
@@ -87,10 +120,15 @@ const Label = () => {
         setError('');
         setSuccess('');
         try {
-            await axios.post('/pdf-labels/save', { rows: tableData });
+            await axios.post('/pdf-labels/save', {
+                rows: tableData,
+                outwardNo: outwardInfo.outwardNo,
+                date: outwardInfo.date
+            });
             setSuccess('Table saved successfully!');
             setTableData([]);
             setSelectedFile(null);
+            setOutwardInfo({ outwardNo: '', date: '' });
         } catch (err) {
             setError('Failed to save table.');
         } finally {
@@ -157,6 +195,17 @@ const Label = () => {
         }
     };
 
+    // Helper to fetch counts for a set of MUCs (label numbers)
+    const fetchCounts = async (mucs) => {
+        // You may want to implement API endpoints for these counts. For now, return dummy data.
+        // Replace this with real API calls as needed.
+        return {
+            inward: 0,
+            outward: 0,
+            returned: 0
+        };
+    };
+
     return (
         <div className="label-container">
             <h1>Label Management</h1>
@@ -208,6 +257,11 @@ const Label = () => {
                     </button>
                     {error && <div className="error-message">{error}</div>}
                     {success && <div className="success-message">{success}</div>}
+                    {outwardInfo.outwardNo && outwardInfo.date && (
+                        <div style={{ margin: '16px 0', color: '#2563eb', fontWeight: 500 }}>
+                            Outward No: {outwardInfo.outwardNo} &nbsp; | &nbsp; Date: {outwardInfo.date}
+                        </div>
+                    )}
                     {tableData.length > 0 && (
                         <>
                             <div className="table-container">
@@ -252,44 +306,104 @@ const Label = () => {
                     {savedTables.length === 0 ? (
                         <div style={{ color: '#888', padding: 24 }}>No saved tables found.</div>
                     ) : (
-                        savedTables.map((set, idx) => (
-                            <div key={set._id || idx} style={{ marginBottom: 32, border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, background: '#fafbfc' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                    <div style={{ fontWeight: 600, color: '#2563eb' }}>Saved Table {savedTables.length - idx}</div>
-                                    <div className="saved-table-actions" style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <button className="btn-primary list-action-btn" onClick={() => handleExportPDF(set.rows)}>
-                                            Export PDF
-                                        </button>
-                                        <button className="btn-danger list-action-btn" title="Delete Table" onClick={() => handleDeleteTable(set._id)}>
-                                            <FaTrash />
-                                        </button>
-                                    </div>
-                                </div>
-                                <table className="table">
-                                    <thead>
-                                        <tr>
-                                            {columns.map((col) => (
-                                                <th key={col}>{col}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {set.rows.map((row, rIdx) => (
-                                            <tr key={rIdx}>
-                                                {columns.map((col, cidx) => (
-                                                    <td key={cidx}>{row[col] || ''}</td>
-                                                ))}
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Outward Number</th>
+                                    <th>Total Quantity</th>
+                                    <th>Inward Count</th>
+                                    <th>Outward Count</th>
+                                    <th>Return Count</th>
+                                    <th>Delete</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {savedTables.map((set, idx) => {
+                                    const mucs = set.rows.map(row => row["Label Number"]);
+                                    const totalQty = mucs.length;
+                                    const status = mucStatus[set._id] || { inward: [], outward: [], returned: [] };
+                                    const inwardCount = status.inward.length;
+                                    const outwardCount = status.outward.length;
+                                    const returnCount = status.returned.length;
+                                    return (
+                                        <React.Fragment key={set._id || idx}>
+                                            <tr>
+                                                <td>{set.date ? new Date(set.date).toLocaleDateString() : ''}</td>
+                                                <td>{set.outwardNo || ''}</td>
+                                                <td style={{ color: '#2563eb', cursor: 'pointer', textDecoration: 'underline' }}
+                                                    onClick={() => setShowMucs({ open: true, mucs: set.rows, title: 'All Product Details in this set' })}>
+                                                    {totalQty}
+                                                </td>
+                                                <td style={{ color: '#2563eb', cursor: 'pointer', textDecoration: 'underline' }}
+                                                    onClick={() => setShowMucs({ open: true, mucs: status.inward, title: 'Inwarded Product Details' })}>
+                                                    {inwardCount}
+                                                </td>
+                                                <td style={{ color: '#2563eb', cursor: 'pointer', textDecoration: 'underline' }}
+                                                    onClick={() => setShowMucs({ open: true, mucs: status.outward, title: 'Outwarded Product Details' })}>
+                                                    {outwardCount}
+                                                </td>
+                                                <td style={{ color: '#2563eb', cursor: 'pointer', textDecoration: 'underline' }}
+                                                    onClick={() => setShowMucs({ open: true, mucs: status.returned, title: 'Returned Product Details' })}>
+                                                    {returnCount}
+                                                </td>
+                                                <td>
+                                                    <button className="btn-danger list-action-btn" title="Delete Table" onClick={() => handleDeleteTable(set._id)}>
+                                                        <FaTrash />
+                                                    </button>
+                                                </td>
                                             </tr>
-                                        ))}
-                                        <tr>
-                                            <td colSpan={columns.length} style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                                                Total: {set.rows.length}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                        </React.Fragment>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    )}
+                    {showMucs.open && (
+                        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+                            onClick={() => setShowMucs({ open: false, mucs: [], title: '' })}>
+                            <div style={{ background: '#fff', padding: 24, borderRadius: 8, minWidth: 320, maxWidth: 900 }} onClick={e => e.stopPropagation()}>
+                                <h3 style={{ marginBottom: 16 }}>{showMucs.title || 'Product Details in this set'}</h3>
+                                <div className="table-container" style={{ maxHeight: 400, overflowY: 'auto' }}>
+                                    <table className="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Product Name</th>
+                                                <th>Label Number</th>
+                                                <th>Length</th>
+                                                <th>Width</th>
+                                                <th>Grade</th>
+                                                <th>Number of PCS</th>
+                                                <th>Total MM</th>
+                                                <th>Weight</th>
+                                                <th>Remark</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {showMucs.mucs.map((row, i) => (
+                                                <tr key={i}>
+                                                    <td>{row["productName"] || row["Product Name"]}</td>
+                                                    <td>{row["mucNumber"] || row["Label Number"]}</td>
+                                                    <td>{row["length"] || row["Length"]}</td>
+                                                    <td>{row["width"] || row["Width"]}</td>
+                                                    <td>{row["grade"] || row["Grade"]}</td>
+                                                    <td>{row["quantity"] || row["Number of PCS"]}</td>
+                                                    <td>{row["totalMm"] || row["Total MM"]}</td>
+                                                    <td>{row["weight"] || row["Weight"]}</td>
+                                                    <td>{row["remark"] || row["Remark"]}</td>
+                                                </tr>
+                                            ))}
+                                            <tr>
+                                                <td colSpan={9} style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                                                    Total: {showMucs.mucs.length}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <button className="btn-primary" style={{ marginTop: 16 }} onClick={() => setShowMucs({ open: false, mucs: [], title: '' })}>Close</button>
                             </div>
-                        ))
+                        </div>
                     )}
                 </div>
             )}

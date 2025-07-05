@@ -25,7 +25,7 @@ const stockTransferOutwardSchema = new mongoose.Schema({
   },
   unit: {
     type: String,
-    required: true
+    required: false
   },
   grade: {
     type: String,
@@ -41,11 +41,11 @@ const stockTransferOutwardSchema = new mongoose.Schema({
   },
   thickness: {
     type: Number,
-    required: true
+    required: false
   },
   totalMm: {
     type: Number,
-    required: true
+    required: false
   },
   quantity: {
     type: Number,
@@ -59,7 +59,10 @@ const stockTransferOutwardSchema = new mongoose.Schema({
   vehicleNumber: { type: String },
   destination: { type: String },
   transporter: { type: String },
-  productPhoto: { type: String }
+  productPhoto: { type: String },
+  invoice: { type: String },
+  address: { type: String },
+  customerName: { type: String }
 }, { timestamps: true });
 
 stockTransferOutwardSchema.index({ mucNumber: 1 });

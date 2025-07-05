@@ -31,7 +31,7 @@ router.get('/check-muc/:mucNumber', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const transfers = await StockTransferOutward.find()
-      .select('mucNumber date fromLocation toLocation productName unit grade length width thickness totalMm quantity bundleNumber vehicleNumber destination transporter productPhoto')
+      .select('mucNumber date fromLocation toLocation productName unit grade length width thickness totalMm quantity bundleNumber vehicleNumber destination transporter productPhoto invoice address customerName')
       .sort({ date: -1 });
     console.log('Sending transfers:', transfers); // Debug log
     res.json(transfers);
@@ -47,7 +47,7 @@ router.get('/muc/:mucNumber', async (req, res) => {
     console.log('Fetching transfer for MUC:', req.params.mucNumber);
     const transfer = await StockTransferOutward.findOne(
       { mucNumber: req.params.mucNumber },
-      'mucNumber productName unit grade length width thickness totalMm quantity bundleNumber fromLocation toLocation'
+      'mucNumber productName unit grade length width thickness totalMm quantity bundleNumber fromLocation toLocation address customerName'
     ).lean(); // Use lean() for better performance
     console.log('Found transfer:', transfer);
     if (!transfer) {
@@ -61,39 +61,27 @@ router.get('/muc/:mucNumber', async (req, res) => {
 });
 
 // Create new outward transfer
-router.post('/', upload.single('productPhoto'), async (req, res) => {
+router.post('/', upload.fields([
+  { name: 'productPhoto', maxCount: 1 },
+  { name: 'invoice', maxCount: 1 }
+]), async (req, res) => {
   try {
     console.log('Received transfer request:', req.body);
 
-    // Validate required fields
-    const requiredFields = [
-      'mucNumber',
-      'date',
-      'fromLocation',
-      'toLocation',
-      'productName',
-      'unit',
-      'grade',
-      'length',
-      'width',
-      'thickness',
-      'totalMm',
-      'quantity'
-    ];
+    // Remove required fields validation
+    // const requiredFields = [ ... ];
+    // const missingFields = requiredFields.filter(field => !req.body[field]);
+    // if (missingFields.length > 0) {
+    //   return res.status(400).json({ 
+    //     message: `Missing required fields: ${missingFields.join(', ')}` 
+    //   });
+    // }
 
-    const missingFields = requiredFields.filter(field => !req.body[field]);
-    if (missingFields.length > 0) {
-      return res.status(400).json({ 
-        message: `Missing required fields: ${missingFields.join(', ')}` 
-      });
-    }
-
-    // Validate numeric fields
-    const numericFields = ['length', 'width', 'thickness', 'totalMm', 'quantity'];
-    const invalidNumericFields = numericFields.filter(field => 
-      isNaN(parseFloat(req.body[field])) || parseFloat(req.body[field]) <= 0
+    // Validate numeric fields only if present
+    const numericFields = ['length', 'width', 'quantity'];
+    const invalidNumericFields = numericFields.filter(field =>
+      req.body[field] !== undefined && req.body[field] !== '' && (isNaN(parseFloat(req.body[field])) || parseFloat(req.body[field]) <= 0)
     );
-    
     if (invalidNumericFields.length > 0) {
       return res.status(400).json({ 
         message: `Invalid numeric values for fields: ${invalidNumericFields.join(', ')}` 
@@ -104,7 +92,6 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
     const existingTransfer = await StockTransferOutward.findOne({ 
       mucNumber: req.body.mucNumber 
     });
-    
     if (existingTransfer) {
       return res.status(400).json({ 
         message: 'This MUC number is already used in an outward transfer.' 
@@ -113,23 +100,26 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
 
     const transfer = new StockTransferOutward({
       mucNumber: req.body.mucNumber,
-      date: new Date(req.body.date),
+      date: req.body.date ? new Date(req.body.date) : undefined,
       fromLocation: req.body.fromLocation,
       toLocation: req.body.toLocation,
       productName: req.body.productName,
       unit: req.body.unit,
       grade: req.body.grade,
-      length: parseFloat(req.body.length),
-      width: parseFloat(req.body.width),
-      thickness: parseFloat(req.body.thickness),
-      totalMm: parseFloat(req.body.totalMm),
-      quantity: parseFloat(req.body.quantity),
+      length: req.body.length ? parseFloat(req.body.length) : undefined,
+      width: req.body.width ? parseFloat(req.body.width) : undefined,
+      thickness: req.body.thickness ? parseFloat(req.body.thickness) : undefined,
+      totalMm: req.body.totalMm ? parseFloat(req.body.totalMm) : undefined,
+      quantity: req.body.quantity ? parseFloat(req.body.quantity) : undefined,
       bundleNumber: req.body.bundleNumber || '',
       remarks: req.body.remarks || '',
       vehicleNumber: req.body.vehicleNumber || '',
       destination: req.body.destination || '',
       transporter: req.body.transporter || '',
-      productPhoto: req.file ? req.file.filename : undefined
+      productPhoto: req.files && req.files.productPhoto ? req.files.productPhoto[0].filename : undefined,
+      invoice: req.files && req.files.invoice ? req.files.invoice[0].filename : undefined,
+      address: req.body.address || '',
+      customerName: req.body.customerName || ''
     });
 
     const savedTransfer = await transfer.save();
@@ -151,7 +141,10 @@ router.post('/', upload.single('productPhoto'), async (req, res) => {
 });
 
 // Update outward transfer
-router.patch('/:id', upload.single('productPhoto'), async (req, res) => {
+router.patch('/:id', upload.fields([
+  { name: 'productPhoto', maxCount: 1 },
+  { name: 'invoice', maxCount: 1 }
+]), async (req, res) => {
   try {
     const transfer = await StockTransferOutward.findById(req.params.id);
     if (!transfer) {
@@ -176,10 +169,17 @@ router.patch('/:id', upload.single('productPhoto'), async (req, res) => {
     transfer.vehicleNumber = req.body.vehicleNumber || transfer.vehicleNumber;
     transfer.destination = req.body.destination || transfer.destination;
     transfer.transporter = req.body.transporter || transfer.transporter;
+    transfer.address = req.body.address || transfer.address;
+    transfer.customerName = req.body.customerName || transfer.customerName;
 
     // Update productPhoto if a new file is uploaded
-    if (req.file) {
-      transfer.productPhoto = req.file.filename;
+    if (req.files && req.files.productPhoto) {
+      transfer.productPhoto = req.files.productPhoto[0].filename;
+    }
+
+    // Update invoice if a new file is uploaded
+    if (req.files && req.files.invoice) {
+      transfer.invoice = req.files.invoice[0].filename;
     }
 
     const updatedTransfer = await transfer.save();

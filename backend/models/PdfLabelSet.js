@@ -14,6 +14,8 @@ const PdfLabelRowSchema = new mongoose.Schema({
 
 const PdfLabelSetSchema = new mongoose.Schema({
   rows: [PdfLabelRowSchema],
+  outwardNo: { type: String },
+  date: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });
 
