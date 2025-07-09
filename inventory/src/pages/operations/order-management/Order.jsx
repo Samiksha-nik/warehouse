@@ -10,6 +10,7 @@ const Order = () => {
   const [error, setError] = useState(null);
   const [editId, setEditId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({
     customerName: '',
     orderDate: '',
@@ -33,15 +34,24 @@ const Order = () => {
       weight: 0,
       totalMM: 0,
       id: '',
-      remark: ''
+      remark: '',
+      sellingPrice: 0,
+      basicRate: 0,
+      amount: 0
     }],
     totalQuantity: 0,
     totalWeight: 0,
-    totalMM: 0
+    totalMM: 0,
+    orderNumber: '',
+    TCSper: 0.1 // Set default to 0.1
   });
 
   useEffect(() => {
     fetchOrders();
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
   }, []);
 
   const fetchOrders = async () => {
@@ -95,7 +105,10 @@ const Order = () => {
         weight: 0,
         totalMM: 0,
         id: '',
-        remark: ''
+        remark: '',
+        sellingPrice: 0,
+        basicRate: 0,
+        amount: 0
       }]
     }));
   };
@@ -134,7 +147,9 @@ const Order = () => {
       products: order.products,
       totalQuantity: order.totalQuantity,
       totalWeight: order.totalWeight,
-      totalMM: order.totalMM
+      totalMM: order.totalMM,
+      orderNumber: order.orderNumber,
+      TCSper: order.TCSper
     });
     setActiveTab('order');
   };
@@ -147,6 +162,16 @@ const Order = () => {
       } catch (err) {
         console.error('Error deleting order:', err);
       }
+    }
+  };
+
+  const handleProductDelete = (index) => {
+    if (formData.products.length > 1) {
+      const updatedProducts = formData.products.filter((_, i) => i !== index);
+      setFormData(prev => ({
+        ...prev,
+        products: updatedProducts.map((p, idx) => ({ ...p, srNo: idx + 1 }))
+      }));
     }
   };
 
@@ -174,11 +199,16 @@ const Order = () => {
         weight: 0,
         totalMM: 0,
         id: '',
-        remark: ''
+        remark: '',
+        sellingPrice: 0,
+        basicRate: 0,
+        amount: 0
       }],
       totalQuantity: 0,
       totalWeight: 0,
-      totalMM: 0
+      totalMM: 0,
+      orderNumber: '',
+      TCSper: 0.1
     });
     setEditId(null);
   };
@@ -196,6 +226,51 @@ const Order = () => {
       </div>
 
       <div className="page-content">
+        {/* Developer-only box above Product Details */}
+        {user?.role === 'developer' && (
+          <div style={{
+            border: '1px solid #ccc',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '20px',
+            background: '#f9f9f9',
+            display: 'flex',
+            gap: '24px',
+            justifyContent: 'flex-start',
+            alignItems: 'center'
+          }}>
+            <div>
+              <label style={{ fontWeight: 'bold' }}>Order Number:</label>
+              <input
+                type="text"
+                className="form-control"
+                value={formData.orderNumber || ''}
+                readOnly
+                style={{ width: 150 }}
+              />
+            </div>
+            <div>
+              <label style={{ fontWeight: 'bold' }}>Order UserId:</label>
+              <input
+                type="text"
+                className="form-control"
+                value={user?.role === 'admin' ? '1' : user?.role === 'developer' ? '2' : ''}
+                readOnly
+                style={{ width: 250 }}
+              />
+            </div>
+            <div>
+              <label style={{ fontWeight: 'bold' }}>TCSper:</label>
+              <input
+                type="number"
+                className="form-control"
+                value={0.1}
+                readOnly
+                style={{ width: 100 }}
+              />
+            </div>
+          </div>
+        )}
         <button
           className={`tab-button${activeTab === 'order' ? ' active' : ''}`}
           onClick={() => setActiveTab('order')}
@@ -328,6 +403,10 @@ const Order = () => {
                           <th>Total MM</th>
                           <th>ID</th>
                           <th>Remark</th>
+                          <th>Selling Price</th>
+                          <th>Basic Rate</th>
+                          <th>Amount</th>
+                          <th>Actions</th> {/* Add Actions column */}
                         </tr>
                       </thead>
                       <tbody>
@@ -441,6 +520,42 @@ const Order = () => {
                                 value={product.remark}
                                 onChange={(e) => handleProductChange(index, 'remark', e.target.value)}
                               />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                className="form-control"
+                                value={product.sellingPrice}
+                                readOnly
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                className="form-control"
+                                value={product.basicRate}
+                                readOnly
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                className="form-control"
+                                value={product.amount}
+                                readOnly
+                              />
+                            </td>
+                            <td>
+                              {formData.products.length > 1 && (
+                                <button
+                                  type="button"
+                                  className="btn btn-danger btn-sm"
+                                  onClick={() => handleProductDelete(index)}
+                                  title="Delete Product"
+                                >
+                                  <FaTrash />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}
