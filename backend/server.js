@@ -97,6 +97,7 @@ const qrRoutes = require('./routes/qrRoutes');
 const stockReportRouter = require('./routes/stockReport');
 const authRouter = require('./routes/auth');
 const pdfLabelsRouter = require('./routes/pdfLabels');
+const ordersRouter = require('./routes/orders');
 
 // Use routes with consistent /api prefix
 app.use('/api/countries', countriesRouter);
@@ -126,6 +127,7 @@ app.use('/api/qr', qrRoutes);
 app.use('/api/stock-report', stockReportRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/pdf-labels', pdfLabelsRouter);
+app.use('/api/orders', ordersRouter);
 
 // TEMP: Test email endpoint
 app.get('/api/test-email', async (req, res) => {

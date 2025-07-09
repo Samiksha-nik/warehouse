@@ -7,7 +7,8 @@ import {
   FaUserFriends, FaUserTie, FaTruckLoading,
   FaBoxOpen, FaLayerGroup,
   FaRuler, FaStar, FaMedal, FaBarcode, FaUndo,
-  FaAngleDoubleLeft, FaAngleDoubleRight, FaChartLine, FaTag, FaTachometerAlt
+  FaAngleDoubleLeft, FaAngleDoubleRight, FaChartLine, FaTag, FaTachometerAlt,
+  FaShoppingCart, FaClipboardCheck
 } from 'react-icons/fa';
 import './Sidebar.css';
 
@@ -16,8 +17,10 @@ const Sidebar = () => {
   const [expandedSections, setExpandedSections] = useState({
     companyLocation: false,
     account: false,
-    inventory: false,
-    productManagement: false
+    inventoryMaster: false,
+    productManagement: false,
+    inventoryOperations: false,
+    orderManagement: false
   });
   const [collapsed, setCollapsed] = useState(true);
 
@@ -43,6 +46,11 @@ const Sidebar = () => {
         </button>
       </div>
       <nav className="sidebar-nav">
+        {/* Dashboard */}
+        <Link to="/dashboard" className={`nav-item ${isActive('/dashboard') ? 'active' : ''}`}>
+          <FaTachometerAlt className="nav-icon" /> {!collapsed && <span>Dashboard</span>}
+        </Link>
+
         {/* Master Pages Section */}
         <div className="master-sections">
           {!collapsed && <h3 className="master-section-title">Master Pages</h3>}
@@ -75,11 +83,11 @@ const Sidebar = () => {
             )}
           </div>
           <div className="master-section">
-            <div className="master-section-header" onClick={() => toggleSection('inventory')}>
+            <div className="master-section-header" onClick={() => toggleSection('inventoryMaster')}>
               <span><FaBoxes /> {!collapsed && 'Inventory Management'}</span>
-              {!collapsed && (expandedSections.inventory ? <FaChevronDown /> : <FaChevronRight />)}
+              {!collapsed && (expandedSections.inventoryMaster ? <FaChevronDown /> : <FaChevronRight />)}
             </div>
-            {expandedSections.inventory && !collapsed && (
+            {expandedSections.inventoryMaster && !collapsed && (
               <div className="master-subsection">
                 <Link to="/masters/inventory-management/unit" className={`nav-item ${isActive('/masters/inventory-management/unit') ? 'active' : ''}`}><FaRuler /> {!collapsed && 'Unit Master'}</Link>
                 <Link to="/masters/inventory-management/grade" className={`nav-item ${isActive('/masters/inventory-management/grade') ? 'active' : ''}`}><FaMedal /> {!collapsed && 'Grade Master'}</Link>
@@ -101,15 +109,39 @@ const Sidebar = () => {
             )}
           </div>
         </div>
-        {/* Main Navigation */}
-        <div className="main-nav-section">
+
+        {/* Inventory Operations Section */}
+        <div className="master-sections">
           {!collapsed && <h3 className="master-section-title">Operations</h3>}
-          <Link to="/dashboard" className={`nav-item ${isActive('/dashboard') ? 'active' : ''}`}><FaTachometerAlt className="nav-icon" /> {!collapsed && <span>Dashboard</span>}</Link>
-          <Link to="/label" className={`nav-item ${isActive('/label') ? 'active' : ''}`}><FaTags className="nav-icon" /> {!collapsed && <span>Label</span>}</Link>
-          <Link to="/assign-inventory" className={`nav-item ${isActive('/assign-inventory') ? 'active' : ''}`}><FaBox className="nav-icon" /> {!collapsed && <span>Assign Inventory</span>}</Link>
-          <Link to="/stock-transfer" className={`nav-item ${isActive('/stock-transfer') ? 'active' : ''}`}><FaExchangeAlt className="nav-icon" /> {!collapsed && <span>Stock Transfer</span>}</Link>
-          <Link to="/dispatch" className={`nav-item ${isActive('/dispatch') ? 'active' : ''}`}><FaTruck className="nav-icon" /> {!collapsed && <span>Dispatch</span>}</Link>
-          <Link to="/return-refund" className={`nav-item ${isActive('/return-refund') ? 'active' : ''}`}><FaUndo className="nav-icon" /> {!collapsed && <span>Return & Refund</span>}</Link>
+          <div className="master-section">
+            <div className="master-section-header" onClick={() => toggleSection('inventoryOperations')}>
+              <span><FaBoxes /> {!collapsed && 'Inventory'}</span>
+              {!collapsed && (expandedSections.inventoryOperations ? <FaChevronDown /> : <FaChevronRight />)}
+            </div>
+            {expandedSections.inventoryOperations && !collapsed && (
+              <div className="master-subsection">
+                <Link to="/label" className={`nav-item ${isActive('/label') ? 'active' : ''}`}><FaTags /> {!collapsed && 'Label'}</Link>
+                <Link to="/assign-inventory" className={`nav-item ${isActive('/assign-inventory') ? 'active' : ''}`}><FaBox /> {!collapsed && 'Assign Inventory'}</Link>
+                <Link to="/stock-transfer" className={`nav-item ${isActive('/stock-transfer') ? 'active' : ''}`}><FaExchangeAlt /> {!collapsed && 'Stock Transfer'}</Link>
+                <Link to="/dispatch" className={`nav-item ${isActive('/dispatch') ? 'active' : ''}`}><FaTruck /> {!collapsed && 'Dispatch'}</Link>
+                <Link to="/return-refund" className={`nav-item ${isActive('/return-refund') ? 'active' : ''}`}><FaUndo /> {!collapsed && 'Return & Refund'}</Link>
+              </div>
+            )}
+          </div>
+
+          {/* Order Management Section */}
+          <div className="master-section">
+            <div className="master-section-header" onClick={() => toggleSection('orderManagement')}>
+              <span><FaShoppingCart /> {!collapsed && 'Order Management'}</span>
+              {!collapsed && (expandedSections.orderManagement ? <FaChevronDown /> : <FaChevronRight />)}
+            </div>
+            {expandedSections.orderManagement && !collapsed && (
+              <div className="master-subsection">
+                <Link to="/order" className={`nav-item ${isActive('/order') ? 'active' : ''}`}><FaShoppingCart /> {!collapsed && 'Order'}</Link>
+                <Link to="/order-approval" className={`nav-item ${isActive('/order-approval') ? 'active' : ''}`}><FaClipboardCheck /> {!collapsed && 'Order Approval'}</Link>
+              </div>
+            )}
+          </div>
         </div>
         
         {/* Reports Section */}

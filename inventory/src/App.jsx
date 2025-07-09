@@ -43,6 +43,8 @@ import StockTransfer from './pages/operations/StockTransfer';
 import Dispatch from './pages/operations/Dispatch';
 import ReturnRefund from './pages/operations/ReturnRefund';
 import Label from './pages/operations/Label';
+import Order from './pages/operations/order-management/Order';
+import OrderApproval from './pages/operations/order-management/OrderApproval';
 
 // Reports
 import StockReport from './pages/reports/stockReport';
@@ -414,6 +416,38 @@ function App() {
                     <Sidebar />
                     <main className="main-content">
                       <ReturnRefund />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/order"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <Order />
+                    </main>
+                  </div>
+                </>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/order-approval"
+            element={
+              <ProtectedRoute>
+                <>
+                  <Header />
+                  <div className="app-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                      <OrderApproval />
                     </main>
                   </div>
                 </>
