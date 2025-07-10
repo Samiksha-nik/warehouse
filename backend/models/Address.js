@@ -18,7 +18,8 @@ const addressSchema = new Schema({
   email: { type: String, trim: true },
   remarks: { type: String },
   status: { type: String, required: true, enum: ['active', 'inactive'], default: 'active' },
-  customerName: { type: String }
+  customerName: { type: String },
+  customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true }
 }, {
   timestamps: true
 });

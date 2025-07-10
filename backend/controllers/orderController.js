@@ -36,7 +36,12 @@ exports.getOrder = async (req, res) => {
 // Create order
 exports.createOrder = async (req, res) => {
   try {
-    const order = new Order(req.body);
+    const orderData = { ...req.body };
+    // Ensure orderStatus is set from the request body
+    if (!orderData.orderStatus) {
+      orderData.orderStatus = 'draft'; // default if not provided
+    }
+    const order = new Order(orderData);
     const newOrder = await order.save();
     res.status(201).json(newOrder);
   } catch (error) {
@@ -51,7 +56,10 @@ exports.updateOrder = async (req, res) => {
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
-    
+    // Only update orderStatus if provided
+    if (typeof req.body.orderStatus !== 'undefined') {
+      order.orderStatus = req.body.orderStatus;
+    }
     Object.assign(order, req.body);
     const updatedOrder = await order.save();
     res.json(updatedOrder);

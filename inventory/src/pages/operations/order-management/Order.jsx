@@ -143,18 +143,25 @@ const Order = () => {
       [field]: value
     };
     // Auto-calculate totalMM if length, width, or thickness changes
-    const { length, width, thickness } = updatedProducts[index];
+    const { length, width, thickness, basicRate, quantity } = updatedProducts[index];
     const l = field === 'length' ? Number(value) : Number(length) || 0;
     const w = field === 'width' ? Number(value) : Number(width) || 0;
     const t = field === 'thickness' ? Number(value) : Number(thickness) || 0;
     updatedProducts[index].totalMM = l * w * t;
 
-    // Auto-fill unit and gradeValue if productName changes
+    // Auto-fill unit, gradeValue, and basicRate if productName changes
     if (field === 'productName') {
       const link = categoryLinks.find(link => (link.product || '').toLowerCase() === value.toLowerCase());
       updatedProducts[index].unit = link?.unit || '';
       updatedProducts[index].gradeValue = link?.grade || '';
+      updatedProducts[index].basicRate = link?.basicRate ? Number(link.basicRate) : 0;
     }
+
+    // Auto-calculate sellingPrice and amount if basicRate or quantity changes
+    const br = Number(updatedProducts[index].basicRate) || 0;
+    const qty = field === 'quantity' ? Number(value) : Number(quantity) || 0;
+    updatedProducts[index].sellingPrice = br * qty;
+    updatedProducts[index].amount = br * qty;
 
     setFormData(prev => ({
       ...prev,
@@ -604,7 +611,7 @@ const Order = () => {
                                 type="number"
                                 className="form-control"
                                 value={product.basicRate}
-                                readOnly
+                                onChange={(e) => handleProductChange(index, 'basicRate', e.target.value)}
                               />
                             </td>
                             <td>
