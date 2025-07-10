@@ -11,7 +11,10 @@ const Order = () => {
   const [error, setError] = useState(null);
   const [editId, setEditId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [user, setUser] = useState(null);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userRole = user.role || '';
+  const orderUserId = userRole === 'developer' ? 2 : 1;
+  const TCSper = 0.1;
   const [formData, setFormData] = useState({
     customerName: '',
     orderDate: '',
@@ -52,6 +55,7 @@ const Order = () => {
 
   useEffect(() => {
     fetchOrders();
+    fetchCustomers();
   }, []);
 
   // Helper to get auth headers
@@ -187,11 +191,17 @@ const Order = () => {
     e.preventDefault();
     try {
       setLoading(true);
+      const orderPayload = {
+        ...formData,
+        orderUserId, // always send
+        orderNumber: formData.orderNumber || '', // send empty string if not present
+        TCSper
+      };
       if (editId) {
-        await axios.put(`http://localhost:5000/api/orders/${editId}`, formData, { headers: getAuthHeaders() });
+        await axios.put(`http://localhost:5000/api/orders/${editId}`, orderPayload, { headers: getAuthHeaders() });
         toast.success('Order updated successfully!');
       } else {
-        await axios.post('http://localhost:5000/api/orders', formData, { headers: getAuthHeaders() });
+        await axios.post('http://localhost:5000/api/orders', orderPayload, { headers: getAuthHeaders() });
         toast.success('Order saved successfully!');
       }
       fetchOrders();
@@ -231,8 +241,10 @@ const Order = () => {
     if (window.confirm('Are you sure you want to delete this order?')) {
       try {
         await axios.delete(`http://localhost:5000/api/orders/${id}`, { headers: getAuthHeaders() });
+        toast.success('Order deleted successfully!');
         fetchOrders();
       } catch (err) {
+        toast.error('Failed to delete order');
         console.error('Error deleting order:', err);
       }
     }
@@ -306,48 +318,17 @@ const Order = () => {
 
       <div className="page-content">
         {/* Developer-only box above Product Details */}
-        {user?.role === 'developer' && (
+        {userRole === 'developer' && (
           <div style={{
-            border: '1px solid #ccc',
-            borderRadius: '8px',
+            border: '1px solid #e0e0e0',
+            borderRadius: '6px',
             padding: '16px',
-            marginBottom: '20px',
-            background: '#f9f9f9',
-            display: 'flex',
-            gap: '24px',
-            justifyContent: 'flex-start',
-            alignItems: 'center'
+            marginBottom: '16px',
+            background: '#f9f9f9'
           }}>
-            <div>
-              <label style={{ fontWeight: 'bold' }}>Order Number:</label>
-              <input
-                type="text"
-                className="form-control"
-                value={formData.orderNumber || ''}
-                readOnly
-                style={{ width: 150 }}
-              />
-            </div>
-            <div>
-              <label style={{ fontWeight: 'bold' }}>Order UserId:</label>
-              <input
-                type="text"
-                className="form-control"
-                value={user?.role === 'admin' ? '1' : user?.role === 'developer' ? '2' : ''}
-                readOnly
-                style={{ width: 250 }}
-              />
-            </div>
-            <div>
-              <label style={{ fontWeight: 'bold' }}>TCSper:</label>
-              <input
-                type="number"
-                className="form-control"
-                value={0.1}
-                readOnly
-                style={{ width: 100 }}
-              />
-            </div>
+            <div><strong>Order Number:</strong> {formData.orderNumber || '(auto-generated after save)'}</div>
+            <div><strong>Order UserId:</strong> {orderUserId}</div>
+            <div><strong>TCSper:</strong> {TCSper}</div>
           </div>
         )}
         <button
@@ -738,28 +719,31 @@ const Order = () => {
                 <table className="data-table">
                   <thead>
                     <tr>
+                      <th>Order Number</th>
                       <th>Customer Name</th>
                       <th>Order Date</th>
                       <th>Status</th>
+                      <th>PDF</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan="4" className="text-center">Loading...</td>
+                        <td colSpan="6" className="text-center">Loading...</td>
                       </tr>
                     ) : error ? (
                       <tr>
-                        <td colSpan="4" className="text-center text-danger">{error}</td>
+                        <td colSpan="6" className="text-center text-danger">{error}</td>
                       </tr>
                     ) : orders.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="text-center">No orders found</td>
+                        <td colSpan="6" className="text-center">No orders found</td>
                       </tr>
                     ) : (
                       orders.map((order) => (
                         <tr key={order._id}>
+                          <td>{order.orderNumber || ''}</td>
                           <td>{order.customerName || ''}</td>
                           <td>{order.orderDate ? new Date(order.orderDate).toLocaleDateString() : ''}</td>
                           <td>
@@ -767,21 +751,10 @@ const Order = () => {
                               {order.orderStatus || ''}
                             </span>
                           </td>
+                          <td>{/* PDF actions will go here */}</td>
                           <td className="action-buttons">
-                            <button
-                              className="btn-icon"
-                              onClick={() => handleEdit(order)}
-                              title="Edit"
-                            >
-                              <FaEdit />
-                            </button>
-                            <button
-                              className="btn-icon"
-                              onClick={() => handleDelete(order._id)}
-                              title="Delete"
-                            >
-                              <FaTrash />
-                            </button>
+                            <button className="btn-icon" onClick={() => handleEdit(order)} title="Edit"><FaEdit /></button>
+                            <button className="btn-icon" onClick={() => handleDelete(order._id)} title="Delete"><FaTrash /></button>
                           </td>
                         </tr>
                       ))
