@@ -1,11 +1,6 @@
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
-  orderNumber: {
-    type: String,
-    required: true,
-    unique: true
-  },
   customerName: {
     type: String,
     required: true
@@ -19,16 +14,8 @@ const orderSchema = new mongoose.Schema({
       type: Number,
       required: true,
       min: 1
-    },
-    price: {
-      type: Number,
-      required: true
     }
   }],
-  totalAmount: {
-    type: Number,
-    required: true
-  },
   status: {
     type: String,
     enum: ['pending', 'approved', 'rejected', 'processing', 'completed', 'cancelled'],
@@ -52,22 +39,7 @@ const orderSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Create a compound index for efficient searching
-orderSchema.index({ orderNumber: 1, customerName: 1 });
-
-// Add auto-incrementing order number
-orderSchema.pre('save', async function(next) {
-  if (!this.orderNumber) {
-    try {
-      const lastOrder = await this.constructor.findOne({}, {}, { sort: { 'orderNumber': -1 } });
-      const lastNumber = lastOrder ? parseInt(lastOrder.orderNumber.slice(3)) : 0;
-      this.orderNumber = `ORD${(lastNumber + 1).toString().padStart(6, '0')}`;
-    } catch (error) {
-      return next(error);
-    }
-  }
-  next();
-});
+// Remove compound index and pre-save hook related to orderNumber
 
 const Order = mongoose.model('Order', orderSchema);
 

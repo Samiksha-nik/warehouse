@@ -302,7 +302,8 @@ const CustomerMaster = () => {
         ifscCode: formData.ifscCode?.trim() || '',
         remarks: formData.remarks?.trim() || '',
         status: formData.status || 'active',
-        accountType: formData.accountType || ''
+        accountType: formData.accountType || '',
+        categoryLinks: categoryLinks
       };
 
       if (editingId) {
@@ -815,7 +816,6 @@ const CustomerMaster = () => {
                 onChange={handleInputChange}
                 placeholder="Enter any additional remarks" rows="3" className="form-control" />
             </div>
-
             {/* Customer Category Linking Table */}
             <div className="form-group full-width">
               <a href="#" style={{ fontWeight: 'bold', color: '#2196f3', textDecoration: 'underline', fontSize: '1.1em' }}>Customer Category Linking</a>
@@ -852,7 +852,7 @@ const CustomerMaster = () => {
                           <select value={row.product || ''} onChange={e => handleCategoryLinkChange(idx, 'product', e.target.value)} required>
                             <option value="">Select</option>
                             {productOptions.map(prod => (
-                              <option key={prod._id} value={prod._id}>{prod.productName}</option>
+                              <option key={prod._id} value={prod.productName}>{prod.productName}</option>
                             ))}
                           </select>
                         </td>
@@ -860,7 +860,7 @@ const CustomerMaster = () => {
                           <select value={row.unit || ''} onChange={e => handleCategoryLinkChange(idx, 'unit', e.target.value)} required>
                             <option value="">Select</option>
                             {unitOptions.map(unit => (
-                              <option key={unit._id} value={unit._id}>{unit.unitName}</option>
+                              <option key={unit._id} value={unit.unitName}>{unit.unitName}</option>
                             ))}
                           </select>
                         </td>
@@ -868,7 +868,7 @@ const CustomerMaster = () => {
                           <select value={row.grade || ''} onChange={e => handleCategoryLinkChange(idx, 'grade', e.target.value)} required>
                             <option value="">Select</option>
                             {gradeOptions.map(grade => (
-                              <option key={grade._id} value={grade._id}>{grade.gradeName}</option>
+                              <option key={grade._id} value={grade.gradeName}>{grade.gradeName}</option>
                             ))}
                           </select>
                         </td>

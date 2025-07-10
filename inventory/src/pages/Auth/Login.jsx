@@ -28,6 +28,7 @@ const Login = () => {
       const response = await axios.post('/auth/login', formData);
       toast.success('Login successful!');
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('token', response.data.token); // Save JWT token for auth
       navigate('/');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Login failed');

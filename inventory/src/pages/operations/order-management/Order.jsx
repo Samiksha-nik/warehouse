@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
 import { MdRefresh } from 'react-icons/md';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const Order = () => {
   const [activeTab, setActiveTab] = useState('order');
@@ -45,19 +46,26 @@ const Order = () => {
     orderNumber: '',
     TCSper: 0.1 // Set default to 0.1
   });
+  const [customers, setCustomers] = useState([]);
+  const [addresses, setAddresses] = useState([]);
+  const [categoryLinks, setCategoryLinks] = useState([]);
 
   useEffect(() => {
     fetchOrders();
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
   }, []);
+
+  // Helper to get auth headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    console.log('Auth headers:', headers); // Debug log
+    return headers;
+  };
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/orders');
+      const response = await axios.get('http://localhost:5000/api/orders', { headers: getAuthHeaders() });
       setOrders(response.data);
       setError(null);
     } catch (err) {
@@ -65,6 +73,54 @@ const Order = () => {
       console.error('Error fetching orders:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/customers/', { headers: getAuthHeaders() });
+      setCustomers(response.data);
+    } catch (err) {
+      setCustomers([]);
+    }
+  };
+
+  // Fetch addresses for selected customer
+  useEffect(() => {
+    if (formData.customerName) {
+      fetchAddressesForCustomer(formData.customerName);
+    } else {
+      setAddresses([]);
+    }
+  }, [formData.customerName]);
+
+  const fetchAddressesForCustomer = async (customerName) => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/addresses/`, { headers: getAuthHeaders() });
+      // Filter addresses by customerName
+      const filtered = response.data.filter(addr => addr.customerName === customerName);
+      setAddresses(filtered);
+    } catch (err) {
+      setAddresses([]);
+    }
+  };
+
+  // Fetch categoryLinks for selected customer
+  useEffect(() => {
+    if (formData.customerName) {
+      fetchCategoryLinksForCustomer(formData.customerName);
+    } else {
+      setCategoryLinks([]);
+    }
+  }, [formData.customerName]);
+
+  const fetchCategoryLinksForCustomer = async (customerName) => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/customers/', { headers: getAuthHeaders() });
+      const customer = response.data.find(cust => cust.customerName === customerName);
+      setCategoryLinks(customer?.categoryLinks || []);
+    } catch (err) {
+      setCategoryLinks([]);
     }
   };
 
@@ -82,6 +138,20 @@ const Order = () => {
       ...updatedProducts[index],
       [field]: value
     };
+    // Auto-calculate totalMM if length, width, or thickness changes
+    const { length, width, thickness } = updatedProducts[index];
+    const l = field === 'length' ? Number(value) : Number(length) || 0;
+    const w = field === 'width' ? Number(value) : Number(width) || 0;
+    const t = field === 'thickness' ? Number(value) : Number(thickness) || 0;
+    updatedProducts[index].totalMM = l * w * t;
+
+    // Auto-fill unit and gradeValue if productName changes
+    if (field === 'productName') {
+      const link = categoryLinks.find(link => (link.product || '').toLowerCase() === value.toLowerCase());
+      updatedProducts[index].unit = link?.unit || '';
+      updatedProducts[index].gradeValue = link?.grade || '';
+    }
+
     setFormData(prev => ({
       ...prev,
       products: updatedProducts
@@ -118,15 +188,18 @@ const Order = () => {
     try {
       setLoading(true);
       if (editId) {
-        await axios.put(`http://localhost:5000/api/orders/${editId}`, formData);
+        await axios.put(`http://localhost:5000/api/orders/${editId}`, formData, { headers: getAuthHeaders() });
+        toast.success('Order updated successfully!');
       } else {
-        await axios.post('http://localhost:5000/api/orders', formData);
+        await axios.post('http://localhost:5000/api/orders', formData, { headers: getAuthHeaders() });
+        toast.success('Order saved successfully!');
       }
       fetchOrders();
       resetForm();
       setError(null);
     } catch (err) {
       setError(editId ? 'Failed to update order' : 'Failed to create order');
+      toast.error(editId ? 'Failed to update order' : 'Failed to create order');
       console.error('Error:', err);
     } finally {
       setLoading(false);
@@ -157,7 +230,7 @@ const Order = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this order?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/orders/${id}`);
+        await axios.delete(`http://localhost:5000/api/orders/${id}`, { headers: getAuthHeaders() });
         fetchOrders();
       } catch (err) {
         console.error('Error deleting order:', err);
@@ -217,6 +290,12 @@ const Order = () => {
     order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Display values from the first row of products
+  const firstProduct = formData.products[0] || {};
+  const totalQuantity = firstProduct.quantity || 0;
+  const totalWeight = firstProduct.weight || 0;
+  const totalMM = firstProduct.totalMM || 0;
 
   return (
     <div className="page-container">
@@ -291,15 +370,19 @@ const Order = () => {
                 <div className="form-grid">
                   <div className="form-group">
                     <label htmlFor="customerName">Customer Name *</label>
-                    <input
-                      type="text"
+                    <select
                       id="customerName"
                       name="customerName"
                       className="form-control"
                       value={formData.customerName}
                       onChange={handleInputChange}
                       required
-                    />
+                    >
+                      <option value="">Select Customer</option>
+                      {customers.map(cust => (
+                        <option key={cust._id} value={cust.customerName}>{cust.customerName}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="form-group">
@@ -326,7 +409,9 @@ const Order = () => {
                       required
                     >
                       <option value="">Select Billing Address</option>
-                      {/* Add billing address options here */}
+                      {addresses.map(addr => (
+                        <option key={addr._id} value={addr._id}>{addr.addressLine1}, {addr.city?.cityName || addr.city}</option>
+                      ))}
                     </select>
                   </div>
 
@@ -341,7 +426,9 @@ const Order = () => {
                       required
                     >
                       <option value="">Select Delivery Address</option>
-                      {/* Add delivery address options here */}
+                      {addresses.map(addr => (
+                        <option key={addr._id} value={addr._id}>{addr.addressLine1}, {addr.city?.cityName || addr.city}</option>
+                      ))}
                     </select>
                   </div>
 
@@ -414,21 +501,24 @@ const Order = () => {
                           <tr key={index}>
                             <td>{product.srNo}</td>
                             <td>
-                              <input
-                                type="text"
+                              <select
                                 className="form-control"
-                                value={product.productName}
-                                onChange={(e) => handleProductChange(index, 'productName', e.target.value)}
+                                value={product.productName || ''}
+                                onChange={e => handleProductChange(index, 'productName', e.target.value)}
                                 required
-                              />
+                              >
+                                <option value="">Select</option>
+                                {categoryLinks.map(link => (
+                                  <option key={link.product} value={link.product}>{link.product}</option>
+                                ))}
+                              </select>
                             </td>
                             <td>
                               <input
                                 type="text"
                                 className="form-control"
                                 value={product.unit}
-                                onChange={(e) => handleProductChange(index, 'unit', e.target.value)}
-                                required
+                                readOnly
                               />
                             </td>
                             <td>
@@ -436,8 +526,7 @@ const Order = () => {
                                 type="text"
                                 className="form-control"
                                 value={product.gradeValue}
-                                onChange={(e) => handleProductChange(index, 'gradeValue', e.target.value)}
-                                required
+                                readOnly
                               />
                             </td>
                             <td>
@@ -502,7 +591,7 @@ const Order = () => {
                                 type="number"
                                 className="form-control"
                                 value={product.totalMM}
-                                onChange={(e) => handleProductChange(index, 'totalMM', e.target.value)}
+                                readOnly
                               />
                             </td>
                             <td>
@@ -575,7 +664,7 @@ const Order = () => {
                       id="totalQuantity"
                       name="totalQuantity"
                       className="form-control"
-                      value={formData.totalQuantity}
+                      value={totalQuantity}
                       readOnly
                     />
                   </div>
@@ -587,7 +676,7 @@ const Order = () => {
                       id="totalWeight"
                       name="totalWeight"
                       className="form-control"
-                      value={formData.totalWeight}
+                      value={totalWeight}
                       readOnly
                     />
                   </div>
@@ -599,7 +688,7 @@ const Order = () => {
                       id="totalMM"
                       name="totalMM"
                       className="form-control"
-                      value={formData.totalMM}
+                      value={totalMM}
                       readOnly
                     />
                   </div>
@@ -649,12 +738,8 @@ const Order = () => {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Order No.</th>
                       <th>Customer Name</th>
                       <th>Order Date</th>
-                      <th>Delivery Date</th>
-                      <th>Total Quantity</th>
-                      <th>Total Weight</th>
                       <th>Status</th>
                       <th>Actions</th>
                     </tr>
@@ -662,28 +747,24 @@ const Order = () => {
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan="8" className="text-center">Loading...</td>
+                        <td colSpan="4" className="text-center">Loading...</td>
                       </tr>
                     ) : error ? (
                       <tr>
-                        <td colSpan="8" className="text-center text-danger">{error}</td>
+                        <td colSpan="4" className="text-center text-danger">{error}</td>
                       </tr>
                     ) : orders.length === 0 ? (
                       <tr>
-                        <td colSpan="8" className="text-center">No orders found</td>
+                        <td colSpan="4" className="text-center">No orders found</td>
                       </tr>
                     ) : (
-                      filteredOrders.map((order) => (
+                      orders.map((order) => (
                         <tr key={order._id}>
-                          <td>{order.orderNo}</td>
-                          <td>{order.customerName}</td>
-                          <td>{new Date(order.orderDate).toLocaleDateString()}</td>
-                          <td>{new Date(order.deliveryDate).toLocaleDateString()}</td>
-                          <td>{order.totalQuantity}</td>
-                          <td>{order.totalWeight}</td>
+                          <td>{order.customerName || ''}</td>
+                          <td>{order.orderDate ? new Date(order.orderDate).toLocaleDateString() : ''}</td>
                           <td>
-                            <span className={`status-badge ${order.orderStatus.toLowerCase()}`}>
-                              {order.orderStatus}
+                            <span className={`status-badge ${(order.orderStatus || '').toLowerCase()}`}>
+                              {order.orderStatus || ''}
                             </span>
                           </td>
                           <td className="action-buttons">

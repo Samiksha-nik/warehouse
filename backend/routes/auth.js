@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const User = require('../models/User'); // You'll need to create this model
+const jwt = require('jsonwebtoken');
 
 // Registration route
 router.post('/register', async (req, res) => {
@@ -65,6 +66,9 @@ router.post('/login', async (req, res) => {
       role: user.role
     };
 
+    // Generate JWT token
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
     res.json({
       message: 'Login successful',
       user: {
@@ -72,7 +76,8 @@ router.post('/login', async (req, res) => {
         email: user.email,
         name: user.name,
         role: user.role
-      }
+      },
+      token // <-- Include token in response
     });
   } catch (error) {
     console.error('Login error:', error);

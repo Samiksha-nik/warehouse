@@ -79,7 +79,20 @@ const customerSchema = new mongoose.Schema({
     required: true, 
     enum: ['active', 'inactive'], 
     default: 'active' 
-  }
+  },
+  categoryLinks: [
+    {
+      category: String,
+      product: String,
+      unit: String,
+      grade: String,
+      basicRate: String,
+      lastUpdatedDate: String,
+      warranty: String,
+      materialDescription: String,
+      bundleQty: String
+    }
+  ]
 }, {
   timestamps: true
 });
