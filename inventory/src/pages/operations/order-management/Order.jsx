@@ -229,8 +229,8 @@ const Order = () => {
     setFormData({
       customerName: order.customerName,
       orderDate: order.orderDate.split('T')[0],
-      billingAddress: order.billingAddress,
-      deliveryAddressId: order.deliveryAddressId,
+      billingAddress: order.billingAddress, // just the ID
+      deliveryAddress: order.deliveryAddressId, // just the ID
       deliveryDate: order.deliveryDate.split('T')[0],
       poNo: order.poNo,
       remark: order.remark,
@@ -392,12 +392,11 @@ const Order = () => {
                       id="billingAddress"
                       name="billingAddress"
                       className="form-control"
-                      value={formData.billingAddress?._id || ''}
+                      value={formData.billingAddress || ''}
                       onChange={e => {
-                        const selected = addresses.find(addr => addr._id === e.target.value);
                         setFormData(prev => ({
                           ...prev,
-                          billingAddress: selected
+                          billingAddress: e.target.value
                         }));
                       }}
                       required
@@ -415,12 +414,11 @@ const Order = () => {
                       id="deliveryAddressId"
                       name="deliveryAddressId"
                       className="form-control"
-                      value={formData.deliveryAddress?._id || ''}
+                      value={formData.deliveryAddress || ''}
                       onChange={e => {
-                        const selected = addresses.find(addr => addr._id === e.target.value);
                         setFormData(prev => ({
                           ...prev,
-                          deliveryAddress: selected
+                          deliveryAddress: e.target.value
                         }));
                       }}
                       required

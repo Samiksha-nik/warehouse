@@ -69,16 +69,6 @@ const OrderApproval = () => {
     }
   }, [formData.customerId]);
 
-  useEffect(() => {
-    if (formData.products && formData.products.length > 0) {
-      const totalQty = formData.products.reduce((sum, p) => sum + (Number(p.quantity) || 0), 0);
-      setFormData(prev => ({
-        ...prev,
-        totalQuantity: totalQty
-      }));
-    }
-  }, [formData.products]);
-
   const fetchAllOrders = async () => {
     try {
       setLoading(true);
@@ -151,8 +141,8 @@ const OrderApproval = () => {
     setFormData({
       orderNo: order.orderNumber || '',
       orderDate: order.orderDate ? order.orderDate.split('T')[0] : '',
-      billingAddress: order.billingAddress || null,
-      deliveryAddress: order.deliveryAddress || null,
+      billingAddressId: order.billingAddressId || '',
+      deliveryAddressId: order.deliveryAddressId || '',
       paymentTerms: order.paymentTerms || '',
       deliveryDate: order.deliveryDate ? order.deliveryDate.split('T')[0] : '',
       remark: order.remark || '',
@@ -170,8 +160,6 @@ const OrderApproval = () => {
       finalTotal: order.finalTotal || 0,
       customerId: order.customerId || ''
     });
-    setBillingAddress(order.billingAddress || null);
-    setDeliveryAddress(order.deliveryAddress || null);
     setActiveTab('add-new');
   };
 
@@ -278,12 +266,10 @@ const OrderApproval = () => {
     });
   };
 
-  const filteredOrders = orders
-    .filter(order => order.orderStatus && order.orderStatus.toLowerCase() === 'complete')
-    .filter(order => 
-      order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  const filteredOrders = orders.filter(order => 
+    order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.customerName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const renderAddNewTab = () => (
     <div className="card">
@@ -317,18 +303,14 @@ const OrderApproval = () => {
           <div className="form-group">
             <label>Billing Address</label>
             <div className="form-control" style={{ background: '#f5f5f5' }}>
-              {billingAddress && billingAddress.addressLine1
-                ? `${billingAddress.addressLine1}, ${billingAddress.city?.cityName || billingAddress.city?.cityName || ''}`
-                : 'No address found'}
+              {billingAddress ? `${billingAddress.addressLine1}, ${billingAddress.city?.cityName || billingAddress.city}` : 'No address found'}
             </div>
           </div>
 
           <div className="form-group">
             <label>Delivery Address</label>
             <div className="form-control" style={{ background: '#f5f5f5' }}>
-              {deliveryAddress && deliveryAddress.addressLine1
-                ? `${deliveryAddress.addressLine1}, ${deliveryAddress.city?.cityName || deliveryAddress.city?.cityName || ''}`
-                : 'No address found'}
+              {deliveryAddress ? `${deliveryAddress.addressLine1}, ${deliveryAddress.city?.cityName || deliveryAddress.city}` : 'No address found'}
             </div>
           </div>
 
@@ -402,8 +384,11 @@ const OrderApproval = () => {
                   <th>Basic Amount</th>
                   <th>CGST Amt.</th>
                   <th>SGST Amt.</th>
-                  <th>Total MM</th>
-                  <th>Amount</th>
+                  <th>IGST %</th>
+                  <th>IGST Amt.</th>
+                  <th>Weight</th>
+                  <th>ID</th>
+                  <th>Order Id</th>
                 </tr>
               </thead>
               <tbody>
@@ -525,16 +510,40 @@ const OrderApproval = () => {
                       <input
                         type="number"
                         className="form-control"
-                        value={product.totalMM}
-                        onChange={(e) => handleProductChange(index, 'totalMM', e.target.value)}
+                        value={product.igstPer || ''}
+                        onChange={(e) => handleProductChange(index, 'igstPer', e.target.value)}
                       />
                     </td>
                     <td>
                       <input
                         type="number"
                         className="form-control"
-                        value={product.amount}
-                        onChange={(e) => handleProductChange(index, 'amount', e.target.value)}
+                        value={product.igstAmt || ''}
+                        onChange={(e) => handleProductChange(index, 'igstAmt', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={product.weight || ''}
+                        onChange={(e) => handleProductChange(index, 'weight', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={product.id || ''}
+                        onChange={(e) => handleProductChange(index, 'id', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={product.orderId || ''}
+                        onChange={(e) => handleProductChange(index, 'orderId', e.target.value)}
                       />
                     </td>
                   </tr>
