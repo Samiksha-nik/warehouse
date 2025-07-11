@@ -35,8 +35,10 @@ const CustomerMaster = () => {
       addressLine3: '',
       area: '',
       country: '',
-      state: '',
-      city: '',
+      state: '', // name
+      stateId: '', // _id for dropdown
+      city: '', // name
+      cityId: '', // _id for dropdown
       pincode: '',
       kmFromFactory: '',
       telephone: '',
@@ -145,7 +147,7 @@ const CustomerMaster = () => {
       setStates([]); // Clear states if no country is selected
       setFormData(prev => ({
         ...prev,
-        billingAddress: { ...prev.billingAddress, state: '', city: '' }
+        billingAddress: { ...prev.billingAddress, state: '', stateId: '', city: '', cityId: '' }
       }));
     }
   }, [formData.billingAddress.country]);
@@ -162,16 +164,16 @@ const CustomerMaster = () => {
 
   // Fetch cities when state changes in billing address
   useEffect(() => {
-    if (formData.billingAddress.state) {
-      fetchCities(formData.billingAddress.state);
+    if (formData.billingAddress.stateId) { // Use stateId for city dropdown
+      fetchCities(formData.billingAddress.stateId);
     } else {
       setCities([]); // Clear cities if no state is selected
       setFormData(prev => ({
         ...prev,
-        billingAddress: { ...prev.billingAddress, city: '' }
+        billingAddress: { ...prev.billingAddress, city: '', cityId: '' }
       }));
     }
-  }, [formData.billingAddress.state]);
+  }, [formData.billingAddress.stateId]);
 
   // Fetch cities
   const fetchCities = async (stateId) => {
@@ -190,13 +192,38 @@ const CustomerMaster = () => {
     // Handle nested billingAddress fields
     if (name.startsWith('billingAddress.')) {
       const fieldName = name.split('.')[1];
-      setFormData(prev => ({
-        ...prev,
-        billingAddress: {
-          ...prev.billingAddress,
-          [fieldName]: newValue
-        }
-      }));
+      // For state and city, save the name instead of the _id
+      if (fieldName === 'state') {
+        const selectedState = states.find(s => s._id === value);
+        setFormData(prev => ({
+          ...prev,
+          billingAddress: {
+            ...prev.billingAddress,
+            state: selectedState ? selectedState.stateName : '',
+            stateId: value,
+            city: '',
+            cityId: ''
+          }
+        }));
+      } else if (fieldName === 'city') {
+        const selectedCity = cities.find(c => c._id === value);
+        setFormData(prev => ({
+          ...prev,
+          billingAddress: {
+            ...prev.billingAddress,
+            city: selectedCity ? selectedCity.cityName : '',
+            cityId: value
+          }
+        }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          billingAddress: {
+            ...prev.billingAddress,
+            [fieldName]: newValue
+          }
+        }));
+      }
     } else {
       setFormData(prev => ({
         ...prev,
@@ -249,8 +276,8 @@ const CustomerMaster = () => {
           addressLine3: formData.billingAddress.addressLine3 || '',
           area: formData.billingAddress.area || '',
           country: formData.billingAddress.country,
-          state: formData.billingAddress.state,
-          city: formData.billingAddress.city,
+          state: formData.billingAddress.state, // Use name for payload
+          city: formData.billingAddress.city, // Use name for payload
           kmFromFactory: formData.billingAddress.kmFromFactory || '',
           telephone: formData.billingAddress.telephone || '',
           mobile: formData.billingAddress.mobile || '',
@@ -353,8 +380,10 @@ const CustomerMaster = () => {
           addressLine3: '',
           area: '',
           country: '',
-          state: '',
-          city: '',
+          state: '', // name
+          stateId: '', // _id for dropdown
+          city: '', // name
+          cityId: '', // _id for dropdown
           pincode: '',
           kmFromFactory: '',
           telephone: '',
@@ -402,14 +431,14 @@ const CustomerMaster = () => {
     }
 
     // Map state/city names to ObjectIds for dropdowns
-    let stateId = billingAddressObj.state;
-    let cityId = billingAddressObj.city;
-    if (billingAddressObj.state && typeof billingAddressObj.state === 'string' && states.length > 0) {
-      const foundState = states.find(s => s.stateName?.toLowerCase() === billingAddressObj.state.toLowerCase());
+    let stateId = billingAddressObj.stateId; // Use stateId for dropdown
+    let cityId = billingAddressObj.cityId; // Use cityId for dropdown
+    if (billingAddressObj.stateId && typeof billingAddressObj.stateId === 'string' && states.length > 0) {
+      const foundState = states.find(s => s._id === billingAddressObj.stateId);
       if (foundState) stateId = foundState._id;
     }
-    if (billingAddressObj.city && typeof billingAddressObj.city === 'string' && cities.length > 0) {
-      const foundCity = cities.find(c => c.cityName?.toLowerCase() === billingAddressObj.city.toLowerCase());
+    if (billingAddressObj.cityId && typeof billingAddressObj.cityId === 'string' && cities.length > 0) {
+      const foundCity = cities.find(c => c._id === billingAddressObj.cityId);
       if (foundCity) cityId = foundCity._id;
     }
 
@@ -432,7 +461,9 @@ const CustomerMaster = () => {
       billingAddress: {
         ...billingAddressObj,
         state: stateId || '',
-        city: cityId || ''
+        stateId: stateId || '',
+        city: cityId || '',
+        cityId: cityId || ''
       },
       gstin: customer.gstin || '',
       pan: customer.pan || '',
@@ -561,17 +592,17 @@ const CustomerMaster = () => {
       const updated = { ...prev };
       if (addressType === 'Billing') {
         if (field === 'country') {
-          updated.billingAddress = { ...updated.billingAddress, country: value, state: '', city: '' };
+          updated.billingAddress = { ...updated.billingAddress, country: value, state: '', city: '', stateId: '', cityId: '' };
         } else if (field === 'state') {
-          updated.billingAddress = { ...updated.billingAddress, state: value, city: '' };
+          updated.billingAddress = { ...updated.billingAddress, state: value, stateId: '', city: '', cityId: '' };
         } else {
           updated.billingAddress = { ...updated.billingAddress, [field]: value };
         }
       } else {
         if (field === 'country') {
-          updated.deliveryAddress = { ...updated.deliveryAddress, country: value, state: '', city: '' };
+          updated.deliveryAddress = { ...updated.deliveryAddress, country: value, state: '', city: '', stateId: '', cityId: '' };
         } else if (field === 'state') {
-          updated.deliveryAddress = { ...updated.deliveryAddress, state: value, city: '' };
+          updated.deliveryAddress = { ...updated.deliveryAddress, state: value, stateId: '', city: '', cityId: '' };
         } else {
           updated.deliveryAddress = { ...updated.deliveryAddress, [field]: value };
         }
@@ -590,7 +621,7 @@ const CustomerMaster = () => {
         setStates([]);
         setAddressModalCustomer(prev => prev ? {
           ...prev,
-          deliveryAddress: { ...prev.deliveryAddress, state: '', city: '' }
+          deliveryAddress: { ...prev.deliveryAddress, state: '', city: '', stateId: '', cityId: '' }
         } : prev);
       }
     }
@@ -598,18 +629,18 @@ const CustomerMaster = () => {
 
   useEffect(() => {
     if (addressModalOpen && addressType === 'Delivery') {
-      const stateId = addressModalCustomer?.deliveryAddress?.state;
+      const stateId = addressModalCustomer?.deliveryAddress?.stateId; // Use stateId for city dropdown
       if (stateId) {
         fetchCities(stateId);
       } else {
         setCities([]);
         setAddressModalCustomer(prev => prev ? {
           ...prev,
-          deliveryAddress: { ...prev.deliveryAddress, city: '' }
+          deliveryAddress: { ...prev.deliveryAddress, city: '', cityId: '' }
         } : prev);
       }
     }
-  }, [addressModalOpen, addressType, addressModalCustomer?.deliveryAddress?.state]);
+  }, [addressModalOpen, addressType, addressModalCustomer?.deliveryAddress?.stateId]);
 
   const renderAddForm = () => (
     <div className="card">
@@ -747,7 +778,7 @@ const CustomerMaster = () => {
               <select
                 id="billingAddress.state"
                 name="billingAddress.state"
-                value={formData.billingAddress.state || ''}
+                value={formData.billingAddress.stateId || ''}
                 onChange={handleInputChange}
                 required
                 className="form-control"
@@ -767,7 +798,7 @@ const CustomerMaster = () => {
               <select
                 id="billingAddress.city"
                 name="billingAddress.city"
-                value={formData.billingAddress.city || ''}
+                value={formData.billingAddress.cityId || ''}
                 onChange={handleInputChange}
                 required
                 className="form-control"

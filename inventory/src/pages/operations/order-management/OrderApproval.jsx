@@ -71,7 +71,15 @@ const OrderApproval = () => {
     }
   }, [formData.customerId]);
 
-  // Remove the useEffect that looks up addresses by ID
+  useEffect(() => {
+    if (formData.products && formData.products.length > 0) {
+      const totalQty = formData.products.reduce((sum, p) => sum + (Number(p.quantity) || 0), 0);
+      setFormData(prev => ({
+        ...prev,
+        totalQuantity: totalQty
+      }));
+    }
+  }, [formData.products]);
 
   const fetchAllOrders = async () => {
     try {
@@ -195,10 +203,37 @@ const OrderApproval = () => {
 
   const handleProductChange = (index, field, value) => {
     const updatedProducts = [...formData.products];
-    updatedProducts[index] = {
-      ...updatedProducts[index],
-      [field]: value
-    };
+    let product = { ...updatedProducts[index], [field]: value };
+
+    // Ensure numeric fields are numbers
+    product.basicRate = Number(product.basicRate) || 0;
+    product.quantity = Number(product.quantity) || 0;
+
+    // Calculate basicAmount
+    const basicAmount = product.basicRate * product.quantity;
+    product.basicAmount = basicAmount;
+
+    // Determine state for GST logic
+    const stateName = (billingAddress && (billingAddress.state?.stateName || billingAddress.state || ''))?.toString().toLowerCase();
+    if (stateName === 'maharashtra') {
+      product.cgstPercent = 9;
+      product.sgstPercent = 9;
+      product.igstPercent = 0;
+      product.cgstAmt = +(basicAmount * 0.09).toFixed(2);
+      product.sgstAmt = +(basicAmount * 0.09).toFixed(2);
+      product.igstAmt = 0;
+      product.amount = +(basicAmount + product.cgstAmt + product.sgstAmt).toFixed(2);
+    } else {
+      product.cgstPercent = 0;
+      product.sgstPercent = 0;
+      product.igstPercent = 18;
+      product.cgstAmt = 0;
+      product.sgstAmt = 0;
+      product.igstAmt = +(basicAmount * 0.18).toFixed(2);
+      product.amount = +(basicAmount + product.igstAmt).toFixed(2);
+    }
+
+    updatedProducts[index] = product;
     setFormData(prev => ({
       ...prev,
       products: updatedProducts
@@ -296,6 +331,9 @@ const OrderApproval = () => {
     order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.customerName.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userRole = user.role || '';
 
   const renderAddNewTab = () => (
     <div className="card">
@@ -412,16 +450,12 @@ const OrderApproval = () => {
                   <th>Quantity *</th>
                   <th>Bundle</th>
                   <th>Basic Amount</th>
+                  {userRole === 'developer' && <th>CGST %</th>}
+                  {userRole === 'developer' && <th>SGST %</th>}
                   <th>CGST Amt.</th>
                   <th>SGST Amt.</th>
-                  <th>IGST %</th>
-                  <th>IGST Amt.</th>
-                  <th>Weight</th>
-                  <th>ID</th>
-                  <th>Order Id</th>
-                  <th>SGST %</th>
-                  <th>CGST %</th>
-                  <th>Actions</th>
+                  <th>Total MM</th>
+                  <th>Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -516,10 +550,31 @@ const OrderApproval = () => {
                       <input
                         type="number"
                         className="form-control"
-                        value={product.basicRate * product.quantity || 0}
+                        value={product.basicAmount}
+                        onChange={(e) => handleProductChange(index, 'basicAmount', e.target.value)}
                         readOnly
                       />
                     </td>
+                    {userRole === 'developer' && (
+                      <td>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={product.cgstPercent || ''}
+                          onChange={(e) => handleProductChange(index, 'cgstPercent', e.target.value)}
+                        />
+                      </td>
+                    )}
+                    {userRole === 'developer' && (
+                      <td>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={product.sgstPercent || ''}
+                          onChange={(e) => handleProductChange(index, 'sgstPercent', e.target.value)}
+                        />
+                      </td>
+                    )}
                     <td>
                       <input
                         type="number"
@@ -536,6 +591,49 @@ const OrderApproval = () => {
                         value={product.sgstAmt}
                         onChange={(e) => handleProductChange(index, 'sgstAmt', e.target.value)}
                         readOnly
+                      />
+                    </td>
+                    {userRole === 'developer' && (
+                      <td>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={product.igstPercent || ''}
+                          onChange={(e) => handleProductChange(index, 'igstPercent', e.target.value)}
+                        />
+                      </td>
+                    )}
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={product.igstAmt || ''}
+                        onChange={(e) => handleProductChange(index, 'igstAmt', e.target.value)}
+                        readOnly
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={product.weight || ''}
+                        onChange={(e) => handleProductChange(index, 'weight', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={product.id || ''}
+                        onChange={(e) => handleProductChange(index, 'id', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={product.orderId || ''}
+                        onChange={(e) => handleProductChange(index, 'orderId', e.target.value)}
                       />
                     </td>
                     <td>
@@ -590,22 +688,31 @@ const OrderApproval = () => {
                       <input
                         type="number"
                         className="form-control"
-                        value={product.cgstPer || ''}
-                        onChange={e => handleProductChange(index, 'cgstPer', e.target.value)}
+                        value={product.amount}
+                        onChange={(e) => handleProductChange(index, 'amount', e.target.value)}
                       />
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="btn-icon"
-                        onClick={() => handleProductDelete(index)}
-                        title="Delete"
-                      >
-                        <FaTrash />
-                      </button>
                     </td>
                   </tr>
                 ))}
+                {/* Total Row */}
+                <tr style={{ fontWeight: 'bold', background: '#f5f5f5' }}>
+                  <td colSpan={9}>Total</td>
+                  <td>{formData.products.reduce((sum, p) => sum + (Number(p.quantity) || 0), 0)}</td>
+                  <td></td>
+                  <td>{formData.products.reduce((sum, p) => sum + (Number(p.basicAmount) || 0), 0)}</td>
+                  {userRole === 'developer' && <td></td>}
+                  {userRole === 'developer' && <td></td>}
+                  <td>{formData.products.reduce((sum, p) => sum + (Number(p.cgstAmt) || 0), 0)}</td>
+                  <td>{formData.products.reduce((sum, p) => sum + (Number(p.sgstAmt) || 0), 0)}</td>
+                  {userRole === 'developer' && <td></td>}
+                  <td>{formData.products.reduce((sum, p) => sum + (Number(p.igstAmt) || 0), 0)}</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td>{formData.products.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)}</td>
+                  <td></td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -614,81 +721,143 @@ const OrderApproval = () => {
           </button>
         </div>
 
-        {/* Replace the form-grid below the product detail table with two side-by-side boxes styled as in the screenshot */}
-        <div style={{ display: 'flex', gap: 24, marginTop: 24 }}>
-          {/* Left Box: Final Total */}
-          <div style={{
-            flex: 1,
-            border: '2px solid #000',
-            borderRadius: 8,
-            padding: 16,
-            background: '#fff',
-            minWidth: 320
-          }}>
-            <div style={{ color: '#0d47a1', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>
-              Final Total
-            </div>
-            <div className="form-group">
-              <label htmlFor="totalQuantity">Total Quantity *</label>
-              <input type="number" id="totalQuantity" name="totalQuantity" className="form-control" value={formData.totalQuantity} onChange={handleInputChange} required readOnly />
-            </div>
-            <div className="form-group">
-              <label htmlFor="totalAmount">Total Amount *</label>
-              <input type="number" id="totalAmount" name="totalAmount" className="form-control" value={formData.totalAmount} onChange={handleInputChange} required readOnly />
-            </div>
-            <div className="form-group">
-              <label htmlFor="totalWeight">Total Weight</label>
-              <input type="number" id="totalWeight" name="totalWeight" className="form-control" value={formData.totalWeight} onChange={handleInputChange} readOnly />
-            </div>
-            <div className="form-group">
-              <label htmlFor="totalMM">Total MM</label>
-              <input type="number" id="totalMM" name="totalMM" className="form-control" value={formData.totalMM} onChange={handleInputChange} readOnly />
-            </div>
-            <div className="form-group">
-              <label htmlFor="orderStatus">Order Status *</label>
-              <select id="orderStatus" name="orderStatus" className="form-control" value={formData.orderStatus} onChange={handleInputChange} required>
-                <option value="">- Select -</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
+        <div className="form-grid">
+          <div className="form-group">
+            <label htmlFor="totalQuantity">Total Quantity *</label>
+            <input
+              type="number"
+              id="totalQuantity"
+              name="totalQuantity"
+              className="form-control"
+              value={formData.totalQuantity}
+              onChange={handleInputChange}
+              required
+              readOnly
+            />
           </div>
-          {/* Right Box: Total */}
-          <div style={{
-            flex: 1,
-            border: '2px solid #000',
-            borderRadius: 8,
-            padding: 16,
-            background: '#fff',
-            minWidth: 320
-          }}>
-            <div style={{ color: '#0d47a1', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>
-              Total
-            </div>
-            <div className="form-group">
-              <label htmlFor="cgst">CGST</label>
-              <input type="number" id="cgst" name="cgst" className="form-control" value={formData.cgst} onChange={handleInputChange} readOnly />
-            </div>
-            <div className="form-group">
-              <label htmlFor="sgst">SGST</label>
-              <input type="number" id="sgst" name="sgst" className="form-control" value={formData.sgst} onChange={handleInputChange} readOnly />
-            </div>
-            <div className="form-group">
-              <label htmlFor="igst">IGST</label>
-              <input type="number" id="igst" name="igst" className="form-control" value={formData.igst} onChange={handleInputChange} readOnly />
-            </div>
-            <div className="form-group">
-              <label htmlFor="tcs">TCS</label>
-              <select id="tcs" name="tcs" className="form-control" value={formData.tcs} onChange={handleInputChange}>
-                <option value="">- Select -</option>
-                {/* Add TCS options here */}
-              </select>
-            </div>
-            <div className="form-group">
-              <label htmlFor="finalTotal">Final Total *</label>
-              <input type="number" id="finalTotal" name="finalTotal" className="form-control" value={formData.finalTotal} onChange={handleInputChange} required readOnly />
-            </div>
+
+          <div className="form-group">
+            <label htmlFor="totalAmount">Total Amount *</label>
+            <input
+              type="number"
+              id="totalAmount"
+              name="totalAmount"
+              className="form-control"
+              value={formData.totalAmount}
+              onChange={handleInputChange}
+              required
+              readOnly
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="totalWeight">Total Weight</label>
+            <input
+              type="number"
+              id="totalWeight"
+              name="totalWeight"
+              className="form-control"
+              value={formData.totalWeight}
+              onChange={handleInputChange}
+              readOnly
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="totalMM">Total MM</label>
+            <input
+              type="number"
+              id="totalMM"
+              name="totalMM"
+              className="form-control"
+              value={formData.totalMM}
+              onChange={handleInputChange}
+              readOnly
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="orderStatus">Order Status *</label>
+            <select
+              id="orderStatus"
+              name="orderStatus"
+              className="form-control"
+              value={formData.orderStatus}
+              onChange={handleInputChange}
+              required
+            >
+              <option value="">- Select -</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="cgst">CGST</label>
+            <input
+              type="number"
+              id="cgst"
+              name="cgst"
+              className="form-control"
+              value={formData.cgst}
+              onChange={handleInputChange}
+              readOnly
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="sgst">SGST</label>
+            <input
+              type="number"
+              id="sgst"
+              name="sgst"
+              className="form-control"
+              value={formData.sgst}
+              onChange={handleInputChange}
+              readOnly
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="igst">IGST</label>
+            <input
+              type="number"
+              id="igst"
+              name="igst"
+              className="form-control"
+              value={formData.igst}
+              onChange={handleInputChange}
+              readOnly
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="tcs">TCS</label>
+            <select
+              id="tcs"
+              name="tcs"
+              className="form-control"
+              value={formData.tcs}
+              onChange={handleInputChange}
+            >
+              <option value="">- Select -</option>
+              {/* Add TCS options here */}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="finalTotal">Final Total *</label>
+            <input
+              type="number"
+              id="finalTotal"
+              name="finalTotal"
+              className="form-control"
+              value={formData.finalTotal}
+              onChange={handleInputChange}
+              required
+              readOnly
+            />
           </div>
         </div>
 

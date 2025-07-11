@@ -197,50 +197,22 @@ const PDFTotalsAndBank = ({ totals = {}, bank = {} }) => (
     minHeight: 80,
   }}>
     {/* Bank Details (left) */}
-    <View style={{ flex: 1, borderRight: '1px solid #000', padding: 6, justifyContent: 'flex-start' }}>
-      <Text style={{ fontWeight: 'bold' }}>Bank Name : {bank.name || ''}</Text>
-      <Text style={{ fontWeight: 'bold' }}>Beneficiary Name : {bank.beneficiary || ''}</Text>
-      <Text style={{ fontWeight: 'bold' }}>A/C No : {bank.accountNo || ''}</Text>
-      <Text style={{ fontWeight: 'bold' }}>IFSC Code : {bank.ifsc || ''}</Text>
-      <Text style={{ fontWeight: 'bold' }}>Branch : {bank.branch || ''}</Text>
+    <View style={{ flex: 1 }}>
+      <Text>Bank Name : {bank.name || ''}</Text>
+      <Text>Beneficiary Name : {bank.beneficiary || ''}</Text>
+      <Text>A/C No : {bank.accountNo || ''}</Text>
+      <Text>IFSC Code : {bank.ifsc || ''}</Text>
+      <Text>Branch : {bank.branch || ''}</Text>
     </View>
-    {/* Totals (right, as a single-column table with only row borders) */}
-    <View style={{ flex: 1, padding: 0, justifyContent: 'flex-start' }}>
-      {[
-        ['Taxable Value', totals.taxableValue],
-        ['CGST', totals.cgst],
-        ['SGST', totals.sgst],
-        ['IGST', totals.igst],
-        ['Total GST Amount', totals.totalGst],
-        [`TCS @ ${totals.tcsRate || ''}%`, totals.tcs],
-        ['Invoice Total', totals.invoiceTotal, true]
-      ].map(([label, value, isBold], idx, arr) => (
-        <View
-          key={label}
-          style={{
-            flexDirection: 'row',
-            borderBottom: idx < arr.length - 1 ? '1px solid #000' : 'none',
-            backgroundColor: isBold ? '#eee' : 'transparent',
-            minHeight: 18,
-            alignItems: 'center'
-          }}
-        >
-          <Text style={{
-            flex: 1,
-            padding: 4,
-            fontWeight: isBold ? 'bold' : 'normal',
-            textAlign: 'left',
-            fontSize: 10
-          }}>{label}</Text>
-          <Text style={{
-            flex: 1,
-            padding: 4,
-            fontWeight: isBold ? 'bold' : 'normal',
-            textAlign: 'right',
-            fontSize: 10
-          }}>{value}</Text>
-        </View>
-      ))}
+    {/* Totals (right) */}
+    <View style={{ flex: 1 }}>
+      <Text>Taxable Value         {totals.taxableValue || ''}</Text>
+      <Text>CGST                 {totals.cgst || ''}</Text>
+      <Text>SGST                 {totals.sgst || ''}</Text>
+      <Text>IGST                 {totals.igst || ''}</Text>
+      <Text>Total GST Amount     {totals.totalGst || ''}</Text>
+      <Text>TCS @ {totals.tcsRate || ''}%         {totals.tcs || ''}</Text>
+      <Text>Invoice Total        {totals.invoiceTotal || ''}</Text>
     </View>
   </View>
 );
