@@ -1,9 +1,71 @@
 import React, { useState, useEffect } from 'react';
-import { FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaSave, FaTimes, FaEdit, FaTrash, FaFilePdf } from 'react-icons/fa';
 import { MdRefresh } from 'react-icons/md';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import Select from 'react-select';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import OrderPDF from '../../../component/OrderPDF';
+
+function mapOrderToPDF(order) {
+  return {
+    company: {
+      name: "BOUJEE BALANCEE PRIVATE LIMITED",
+      address: "Plot no 162, Gala no 4 Gunthas Shirishpada to khanavali Road, Vad Palghar",
+      cin: "U31500MH2024PTC423272",
+      gstin: "27AAMCB9576J1ZT",
+      pan: "AAMCB9575G",
+      logoUrl: "/logo.png",
+      corporateAddress: "20 FL COMMERZ 2 CTS 95 48 3, 4 590 OBROI GARDEN CITY,GOREGAON EAST MUMBAI-400063.MH"
+    },
+    billedTo: {
+      name: order.customerName,
+      address: [order.billingAddress?.addressLine1, order.billingAddress?.addressLine2, order.billingAddress?.addressLine3].filter(Boolean).join(", "),
+      gstin: order.billingAddress?.gstin || '',
+      pan: order.billingAddress?.pan || '',
+      stateName: order.billingAddress?.state?.stateName || order.billingAddress?.state || ''
+    },
+    shippedTo: {
+      name: order.customerName,
+      address: [order.deliveryAddress?.addressLine1, order.deliveryAddress?.addressLine2, order.deliveryAddress?.addressLine3].filter(Boolean).join(", "),
+      gstin: order.deliveryAddress?.gstin || '',
+      pan: order.deliveryAddress?.pan || '',
+      stateName: order.deliveryAddress?.state?.stateName || order.deliveryAddress?.state || ''
+    },
+    products: (order.products || []).map((prod, idx) => ({
+      description: prod.productName || '',
+      subDescription: prod.remark || '',
+      hsn: prod.hsnCode || '',
+      grade: prod.gradeValue || '',
+      length: prod.length || '',
+      width: prod.width || '',
+      thickness: prod.thickness || '',
+      qty: prod.quantity || '',
+      basic: prod.basicRate || '',
+      taxableValue: prod.amount || ''
+    })),
+    totals: {
+      taxableValue: order.totalTaxableValue || '',
+      cgst: order.cgst || '',
+      sgst: order.sgst || '',
+      igst: order.igst || '',
+      totalGst: order.totalGst || '',
+      tcsRate: order.tcsRate || '',
+      tcs: order.tcs || '',
+      invoiceTotal: order.invoiceTotal || ''
+    },
+    bank: {
+      name: "AXIS BANK LTD",
+      beneficiary: "Boujee Balancee Private Limited",
+      accountNo: "942000005487120",
+      ifsc: "UTIB0000162",
+      branch: "GOREGAON EAST"
+    },
+    orderNo: order.orderNumber || '',
+    deliveryDate: order.deliveryDate || '',
+    date: order.orderDate || ''
+  };
+}
 
 const Order = () => {
   const [activeTab, setActiveTab] = useState('order');
@@ -386,6 +448,7 @@ const Order = () => {
                     />
                   </div>
 
+                  {/* Billing Address Dropdown */}
                   <div className="form-group">
                     <label htmlFor="billingAddress">Billing Address *</label>
                     <select
@@ -403,11 +466,16 @@ const Order = () => {
                     >
                       <option value="">Select Billing Address</option>
                       {addresses.map(addr => (
-                        <option key={addr._id} value={addr._id}>{addr.addressLine1}, {addr.city?.cityName || addr.city}</option>
+                        <option key={addr._id} value={addr._id}>
+                          {addr.addressLine1}
+                          {addr.addressLine2 ? `, ${addr.addressLine2}` : ''}
+                          {addr.addressLine3 ? `, ${addr.addressLine3}` : ''}
+                        </option>
                       ))}
                     </select>
                   </div>
 
+                  {/* Delivery Address Dropdown */}
                   <div className="form-group">
                     <label htmlFor="deliveryAddressId">Delivery Address *</label>
                     <select
@@ -425,7 +493,11 @@ const Order = () => {
                     >
                       <option value="">Select Delivery Address</option>
                       {addresses.map(addr => (
-                        <option key={addr._id} value={addr._id}>{addr.addressLine1}, {addr.city?.cityName || addr.city}</option>
+                        <option key={addr._id} value={addr._id}>
+                          {addr.addressLine1}
+                          {addr.addressLine2 ? `, ${addr.addressLine2}` : ''}
+                          {addr.addressLine3 ? `, ${addr.addressLine3}` : ''}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -768,7 +840,20 @@ const Order = () => {
                               {order.orderStatus || ''}
                             </span>
                           </td>
-                          <td>{/* PDF actions will go here */}</td>
+                          <td>
+                            <PDFDownloadLink
+                              document={<OrderPDF order={mapOrderToPDF(order)} userName={order.customerName || ''} />}
+                              fileName={`SalesPerforma_${order.orderNumber || order._id}.pdf`}
+                              style={{ textDecoration: 'none' }}
+                            >
+                              {({ loading }) => (
+                                <button className="btn-icon" title="Sales Performa PDF">
+                                  <FaFilePdf style={{ color: '#d32f2f', marginRight: 4 }} />
+                                  {loading ? 'Generating...' : 'Sales Performa'}
+                                </button>
+                              )}
+                            </PDFDownloadLink>
+                          </td>
                           <td className="action-buttons">
                             <button className="btn-icon" onClick={() => handleEdit(order)} title="Edit"><FaEdit /></button>
                             <button className="btn-icon" onClick={() => handleDelete(order._id)} title="Delete"><FaTrash /></button>

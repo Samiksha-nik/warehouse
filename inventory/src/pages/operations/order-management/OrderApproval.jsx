@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FaClipboardCheck, FaCheck, FaTimes, FaSave, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaClipboardCheck, FaCheck, FaTimes, FaSave, FaEdit, FaTrash, FaFilePdf } from 'react-icons/fa';
 import { MdRefresh } from 'react-icons/md';
 import axios from 'axios';
 import '../../../styles/shared.css';
 import styles from '../../../styles/TableStyles.module.css';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import OrderPDF from '../../../component/OrderPDF.jsx';
 
 // Helper to get auth headers
 const getAuthHeaders = () => {
@@ -68,6 +70,8 @@ const OrderApproval = () => {
       fetchCustomerAddresses(formData.customerId);
     }
   }, [formData.customerId]);
+
+  // Remove the useEffect that looks up addresses by ID
 
   const fetchAllOrders = async () => {
     try {
@@ -141,8 +145,8 @@ const OrderApproval = () => {
     setFormData({
       orderNo: order.orderNumber || '',
       orderDate: order.orderDate ? order.orderDate.split('T')[0] : '',
-      billingAddressId: order.billingAddressId || '',
-      deliveryAddressId: order.deliveryAddressId || '',
+      billingAddressId: order.billingAddress?._id || '',
+      deliveryAddressId: order.deliveryAddress?._id || '',
       paymentTerms: order.paymentTerms || '',
       deliveryDate: order.deliveryDate ? order.deliveryDate.split('T')[0] : '',
       remark: order.remark || '',
@@ -160,6 +164,8 @@ const OrderApproval = () => {
       finalTotal: order.finalTotal || 0,
       customerId: order.customerId || ''
     });
+    setBillingAddress(order.billingAddress || null);
+    setDeliveryAddress(order.deliveryAddress || null);
     setActiveTab('add-new');
   };
 
@@ -219,6 +225,26 @@ const OrderApproval = () => {
         sgstAmt: 0
       }]
     }));
+  };
+
+  const handleProductDelete = (index) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      setFormData(prev => {
+        const updatedProducts = prev.products.filter((_, i) => i !== index);
+        // Re-index products after deletion
+        updatedProducts.forEach((product, i) => {
+          product.srNo = i + 1;
+        });
+        return {
+          ...prev,
+          products: updatedProducts,
+          totalQuantity: updatedProducts.reduce((sum, p) => sum + p.quantity, 0),
+          totalAmount: updatedProducts.reduce((sum, p) => sum + p.basicRate * p.quantity, 0),
+          totalWeight: updatedProducts.reduce((sum, p) => sum + p.weight, 0),
+          totalMM: updatedProducts.reduce((sum, p) => sum + p.length * p.width * p.thickness, 0),
+        };
+      });
+    }
   };
 
   const handleSubmit = (e) => {
@@ -303,14 +329,18 @@ const OrderApproval = () => {
           <div className="form-group">
             <label>Billing Address</label>
             <div className="form-control" style={{ background: '#f5f5f5' }}>
-              {billingAddress ? `${billingAddress.addressLine1}, ${billingAddress.city?.cityName || billingAddress.city}` : 'No address found'}
+              {billingAddress
+                ? [billingAddress.addressLine1, billingAddress.addressLine2, billingAddress.addressLine3].filter(Boolean).join(', ')
+                : 'No address found'}
             </div>
           </div>
 
           <div className="form-group">
             <label>Delivery Address</label>
             <div className="form-control" style={{ background: '#f5f5f5' }}>
-              {deliveryAddress ? `${deliveryAddress.addressLine1}, ${deliveryAddress.city?.cityName || deliveryAddress.city}` : 'No address found'}
+              {deliveryAddress
+                ? [deliveryAddress.addressLine1, deliveryAddress.addressLine2, deliveryAddress.addressLine3].filter(Boolean).join(', ')
+                : 'No address found'}
             </div>
           </div>
 
@@ -389,6 +419,9 @@ const OrderApproval = () => {
                   <th>Weight</th>
                   <th>ID</th>
                   <th>Order Id</th>
+                  <th>SGST %</th>
+                  <th>CGST %</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -483,8 +516,7 @@ const OrderApproval = () => {
                       <input
                         type="number"
                         className="form-control"
-                        value={product.basicAmount}
-                        onChange={(e) => handleProductChange(index, 'basicAmount', e.target.value)}
+                        value={product.basicRate * product.quantity || 0}
                         readOnly
                       />
                     </td>
@@ -546,6 +578,32 @@ const OrderApproval = () => {
                         onChange={(e) => handleProductChange(index, 'orderId', e.target.value)}
                       />
                     </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={product.sgstPer || ''}
+                        onChange={e => handleProductChange(index, 'sgstPer', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={product.cgstPer || ''}
+                        onChange={e => handleProductChange(index, 'cgstPer', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn-icon"
+                        onClick={() => handleProductDelete(index)}
+                        title="Delete"
+                      >
+                        <FaTrash />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -556,143 +614,81 @@ const OrderApproval = () => {
           </button>
         </div>
 
-        <div className="form-grid">
-          <div className="form-group">
-            <label htmlFor="totalQuantity">Total Quantity *</label>
-            <input
-              type="number"
-              id="totalQuantity"
-              name="totalQuantity"
-              className="form-control"
-              value={formData.totalQuantity}
-              onChange={handleInputChange}
-              required
-              readOnly
-            />
+        {/* Replace the form-grid below the product detail table with two side-by-side boxes styled as in the screenshot */}
+        <div style={{ display: 'flex', gap: 24, marginTop: 24 }}>
+          {/* Left Box: Final Total */}
+          <div style={{
+            flex: 1,
+            border: '2px solid #000',
+            borderRadius: 8,
+            padding: 16,
+            background: '#fff',
+            minWidth: 320
+          }}>
+            <div style={{ color: '#0d47a1', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>
+              Final Total
+            </div>
+            <div className="form-group">
+              <label htmlFor="totalQuantity">Total Quantity *</label>
+              <input type="number" id="totalQuantity" name="totalQuantity" className="form-control" value={formData.totalQuantity} onChange={handleInputChange} required readOnly />
+            </div>
+            <div className="form-group">
+              <label htmlFor="totalAmount">Total Amount *</label>
+              <input type="number" id="totalAmount" name="totalAmount" className="form-control" value={formData.totalAmount} onChange={handleInputChange} required readOnly />
+            </div>
+            <div className="form-group">
+              <label htmlFor="totalWeight">Total Weight</label>
+              <input type="number" id="totalWeight" name="totalWeight" className="form-control" value={formData.totalWeight} onChange={handleInputChange} readOnly />
+            </div>
+            <div className="form-group">
+              <label htmlFor="totalMM">Total MM</label>
+              <input type="number" id="totalMM" name="totalMM" className="form-control" value={formData.totalMM} onChange={handleInputChange} readOnly />
+            </div>
+            <div className="form-group">
+              <label htmlFor="orderStatus">Order Status *</label>
+              <select id="orderStatus" name="orderStatus" className="form-control" value={formData.orderStatus} onChange={handleInputChange} required>
+                <option value="">- Select -</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
           </div>
-
-          <div className="form-group">
-            <label htmlFor="totalAmount">Total Amount *</label>
-            <input
-              type="number"
-              id="totalAmount"
-              name="totalAmount"
-              className="form-control"
-              value={formData.totalAmount}
-              onChange={handleInputChange}
-              required
-              readOnly
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="totalWeight">Total Weight</label>
-            <input
-              type="number"
-              id="totalWeight"
-              name="totalWeight"
-              className="form-control"
-              value={formData.totalWeight}
-              onChange={handleInputChange}
-              readOnly
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="totalMM">Total MM</label>
-            <input
-              type="number"
-              id="totalMM"
-              name="totalMM"
-              className="form-control"
-              value={formData.totalMM}
-              onChange={handleInputChange}
-              readOnly
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="orderStatus">Order Status *</label>
-            <select
-              id="orderStatus"
-              name="orderStatus"
-              className="form-control"
-              value={formData.orderStatus}
-              onChange={handleInputChange}
-              required
-            >
-              <option value="">- Select -</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="cgst">CGST</label>
-            <input
-              type="number"
-              id="cgst"
-              name="cgst"
-              className="form-control"
-              value={formData.cgst}
-              onChange={handleInputChange}
-              readOnly
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="sgst">SGST</label>
-            <input
-              type="number"
-              id="sgst"
-              name="sgst"
-              className="form-control"
-              value={formData.sgst}
-              onChange={handleInputChange}
-              readOnly
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="igst">IGST</label>
-            <input
-              type="number"
-              id="igst"
-              name="igst"
-              className="form-control"
-              value={formData.igst}
-              onChange={handleInputChange}
-              readOnly
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="tcs">TCS</label>
-            <select
-              id="tcs"
-              name="tcs"
-              className="form-control"
-              value={formData.tcs}
-              onChange={handleInputChange}
-            >
-              <option value="">- Select -</option>
-              {/* Add TCS options here */}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="finalTotal">Final Total *</label>
-            <input
-              type="number"
-              id="finalTotal"
-              name="finalTotal"
-              className="form-control"
-              value={formData.finalTotal}
-              onChange={handleInputChange}
-              required
-              readOnly
-            />
+          {/* Right Box: Total */}
+          <div style={{
+            flex: 1,
+            border: '2px solid #000',
+            borderRadius: 8,
+            padding: 16,
+            background: '#fff',
+            minWidth: 320
+          }}>
+            <div style={{ color: '#0d47a1', fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>
+              Total
+            </div>
+            <div className="form-group">
+              <label htmlFor="cgst">CGST</label>
+              <input type="number" id="cgst" name="cgst" className="form-control" value={formData.cgst} onChange={handleInputChange} readOnly />
+            </div>
+            <div className="form-group">
+              <label htmlFor="sgst">SGST</label>
+              <input type="number" id="sgst" name="sgst" className="form-control" value={formData.sgst} onChange={handleInputChange} readOnly />
+            </div>
+            <div className="form-group">
+              <label htmlFor="igst">IGST</label>
+              <input type="number" id="igst" name="igst" className="form-control" value={formData.igst} onChange={handleInputChange} readOnly />
+            </div>
+            <div className="form-group">
+              <label htmlFor="tcs">TCS</label>
+              <select id="tcs" name="tcs" className="form-control" value={formData.tcs} onChange={handleInputChange}>
+                <option value="">- Select -</option>
+                {/* Add TCS options here */}
+              </select>
+            </div>
+            <div className="form-group">
+              <label htmlFor="finalTotal">Final Total *</label>
+              <input type="number" id="finalTotal" name="finalTotal" className="form-control" value={formData.finalTotal} onChange={handleInputChange} required readOnly />
+            </div>
           </div>
         </div>
 
@@ -757,7 +753,20 @@ const OrderApproval = () => {
                   <td>{order.customerName || ''}</td>
                   <td>{order.orderDate ? new Date(order.orderDate).toLocaleDateString() : ''}</td>
                   <td>{order.orderStatus || ''}</td>
-                  <td>{/* PDF actions will go here */}</td>
+                  <td>
+                    <PDFDownloadLink
+                      document={<OrderPDF order={order} userName={order.customerName} />}
+                      fileName={`SalesProforma_${order.orderNumber}.pdf`}
+                      style={{ textDecoration: 'none', color: '#d32f2f', display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      {({ loading }) => (
+                        <>
+                          <FaFilePdf style={{ color: '#d32f2f', fontSize: 18, verticalAlign: 'middle' }} />
+                          {loading ? 'Generating...' : 'Sales Performa'}
+                        </>
+                      )}
+                    </PDFDownloadLink>
+                  </td>
                   <td>
                     <button className="btn-icon" onClick={() => handleEdit(order)} title="Edit"><FaEdit /></button>
                     <button className="btn-icon" onClick={() => handleDelete(order._id)} title="Delete"><FaTrash /></button>
