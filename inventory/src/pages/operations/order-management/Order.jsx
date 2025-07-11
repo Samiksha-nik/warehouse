@@ -3,6 +3,7 @@ import { FaSave, FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
 import { MdRefresh } from 'react-icons/md';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import Select from 'react-select';
 
 const Order = () => {
   const [activeTab, setActiveTab] = useState('order');
@@ -358,19 +359,18 @@ const Order = () => {
                 <div className="form-grid">
                   <div className="form-group">
                     <label htmlFor="customerName">Customer Name *</label>
-                    <select
+                    <Select
                       id="customerName"
                       name="customerName"
-                      className="form-control"
-                      value={formData.customerName}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="">Select Customer</option>
-                      {customers.map(cust => (
-                        <option key={cust._id} value={cust.customerName}>{cust.customerName}</option>
-                      ))}
-                    </select>
+                      options={customers.map(cust => ({ value: cust.customerName, label: cust.customerName }))}
+                      value={customers.map(cust => ({ value: cust.customerName, label: cust.customerName })).find(opt => opt.value === formData.customerName) || null}
+                      onChange={selected => setFormData(prev => ({
+                        ...prev,
+                        customerName: selected ? selected.value : ''
+                      }))}
+                      placeholder="Search or select customer..."
+                      isClearable
+                    />
                   </div>
 
                   <div className="form-group">
@@ -392,8 +392,14 @@ const Order = () => {
                       id="billingAddress"
                       name="billingAddress"
                       className="form-control"
-                      value={formData.billingAddress}
-                      onChange={handleInputChange}
+                      value={formData.billingAddress?._id || ''}
+                      onChange={e => {
+                        const selected = addresses.find(addr => addr._id === e.target.value);
+                        setFormData(prev => ({
+                          ...prev,
+                          billingAddress: selected
+                        }));
+                      }}
                       required
                     >
                       <option value="">Select Billing Address</option>
@@ -409,8 +415,14 @@ const Order = () => {
                       id="deliveryAddressId"
                       name="deliveryAddressId"
                       className="form-control"
-                      value={formData.deliveryAddressId}
-                      onChange={handleInputChange}
+                      value={formData.deliveryAddress?._id || ''}
+                      onChange={e => {
+                        const selected = addresses.find(addr => addr._id === e.target.value);
+                        setFormData(prev => ({
+                          ...prev,
+                          deliveryAddress: selected
+                        }));
+                      }}
                       required
                     >
                       <option value="">Select Delivery Address</option>

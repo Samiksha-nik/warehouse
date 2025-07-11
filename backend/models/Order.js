@@ -41,17 +41,34 @@ const orderSchema = new mongoose.Schema({
     type: Date
   },
   products: [{
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product'
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      min: 1
-    }
+    srNo: { type: Number },
+    productName: { type: String, required: true },
+    unit: { type: String, required: true },
+    gradeValue: { type: String },
+    length: { type: Number },
+    width: { type: Number },
+    thickness: { type: Number },
+    quantity: { type: Number, required: true, min: 1 },
+    bundle: { type: Number },
+    bundleLimit: { type: Number },
+    weight: { type: Number },
+    totalMM: { type: Number },
+    id: { type: String },
+    remark: { type: String },
+    sellingPrice: { type: Number },
+    basicRate: { type: Number },
+    amount: { type: Number }
   }],
   notes: {
+    type: String
+  },
+  billingAddress: {
+    type: Object // Store the full billing address details
+  },
+  deliveryAddress: {
+    type: Object // Store the full delivery address details
+  },
+  poNo: {
     type: String
   }
 }, {

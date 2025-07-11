@@ -25,6 +25,7 @@
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.9",
     "pdf-parse": "^1.1.1",
-    "qrcode-reader": "^1.0.4"
+    "qrcode-reader": "^1.0.4",
+    "react-select": "^5.10.1"
   }
 }

@@ -104,7 +104,21 @@ const CustomerMaster = () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/customers/`);
-      setCustomers(response.data);
+      const customersWithAddresses = await Promise.all(response.data.map(async (customer) => {
+        let billingAddressObj = {};
+        if (typeof customer.billingAddress === 'string' && customer.billingAddress) {
+          try {
+            const res = await axios.get(`http://localhost:5000/api/addresses/${customer.billingAddress}`);
+            billingAddressObj = res.data;
+          } catch (err) {
+            billingAddressObj = {};
+          }
+        } else {
+          billingAddressObj = customer.billingAddress || {};
+        }
+        return { ...customer, billingAddress: billingAddressObj };
+      }));
+      setCustomers(customersWithAddresses);
       setError(null);
     } catch (err) {
       setError('Error fetching customers: ' + err.message);
@@ -373,8 +387,20 @@ const CustomerMaster = () => {
     }
   };
 
-  const handleEdit = (customer) => {
+  const handleEdit = async (customer) => {
+    let billingAddressObj = {};
+    if (typeof customer.billingAddress === 'string' && customer.billingAddress) {
+      try {
+        const res = await axios.get(`http://localhost:5000/api/addresses/${customer.billingAddress}`);
+        billingAddressObj = res.data;
+      } catch (err) {
+        billingAddressObj = {};
+      }
+    } else {
+      billingAddressObj = customer.billingAddress || {};
+    }
     setFormData({
+      _id: customer._id, // Ensure _id is included for editing and address modal
       customerCode: customer.customerCode || '',
       customerName: customer.customerName || '',
       contactPerson: customer.contactPerson || '',
@@ -389,39 +415,7 @@ const CustomerMaster = () => {
       assignedUser: customer.assignedUser || '',
       modifySP: customer.modifySP || 'no',
       salesPersonName: customer.salesPersonName || '',
-      billingAddress: customer.billingAddress ? {
-        _id: customer.billingAddress._id || '',
-        addressLine1: customer.billingAddress.addressLine1 || '',
-        addressLine2: customer.billingAddress.addressLine2 || '',
-        addressLine3: customer.billingAddress.addressLine3 || '',
-        area: customer.billingAddress.area || '',
-        country: customer.billingAddress.country?._id || '',
-        state: customer.billingAddress.state?._id || '',
-        city: customer.billingAddress.city?._id || '',
-        kmFromFactory: customer.billingAddress.kmFromFactory || '',
-        telephone: customer.billingAddress.telephone || '',
-        mobile: customer.billingAddress.mobile || '',
-        fax: customer.billingAddress.fax || '',
-        email: customer.billingAddress.email || '',
-        remarks: customer.billingAddress.remarks || '',
-        status: customer.billingAddress.status || 'active'
-      } : {
-        _id: '',
-        addressLine1: '',
-        addressLine2: '',
-        addressLine3: '',
-        area: '',
-        country: '',
-        state: '',
-        city: '',
-        kmFromFactory: '',
-        telephone: '',
-        mobile: '',
-        fax: '',
-        email: '',
-        remarks: '',
-        status: 'active'
-      },
+      billingAddress: billingAddressObj,
       gstin: customer.gstin || '',
       pan: customer.pan || '',
       tan: customer.tan || '',
@@ -483,15 +477,30 @@ const CustomerMaster = () => {
   };
 
   const handleSaveAddress = () => {
+    // Check for required fields
+    if (!addressModalCustomer?._id) {
+      toast.error('Please save the customer before adding an address.');
+      return;
+    }
+    if (!addressType) {
+      toast.error('Please select Address Type (Billing or Delivery).');
+      return;
+    }
     // Remove _id if present to avoid duplicate key error
-    const { _id, ...addressDataWithoutId } = addressModalCustomer?.billingAddress || {};
+    const { _id, ...addressDataWithoutId } = (addressType === 'Billing'
+      ? addressModalCustomer?.billingAddress
+      : addressModalCustomer?.deliveryAddress) || {};
     const addressData = {
       ...addressDataWithoutId,
-      customerName: addressModalCustomer?.customerName || ''
+      customerName: addressModalCustomer?.customerName || '',
+      customerId: addressModalCustomer?._id || '',
+      addressType: addressType
     };
+    console.log('Address data being sent:', addressData); // Debug log
     axios.post('http://localhost:5000/api/addresses/add', addressData)
       .then(() => {
         setAddressModalTab('list');
+        fetchCustomers();
         toast.success('Address saved!');
       })
       .catch(err => {
@@ -527,6 +536,62 @@ const CustomerMaster = () => {
       }
     }
   };
+
+  function handleAddressFieldChange(field, value) {
+    setAddressModalCustomer(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev };
+      if (addressType === 'Billing') {
+        if (field === 'country') {
+          updated.billingAddress = { ...updated.billingAddress, country: value, state: '', city: '' };
+        } else if (field === 'state') {
+          updated.billingAddress = { ...updated.billingAddress, state: value, city: '' };
+        } else {
+          updated.billingAddress = { ...updated.billingAddress, [field]: value };
+        }
+      } else {
+        if (field === 'country') {
+          updated.deliveryAddress = { ...updated.deliveryAddress, country: value, state: '', city: '' };
+        } else if (field === 'state') {
+          updated.deliveryAddress = { ...updated.deliveryAddress, state: value, city: '' };
+        } else {
+          updated.deliveryAddress = { ...updated.deliveryAddress, [field]: value };
+        }
+      }
+      return updated;
+    });
+  }
+
+  // Add these useEffects for Delivery addressType
+  useEffect(() => {
+    if (addressModalOpen && addressType === 'Delivery') {
+      const countryId = addressModalCustomer?.deliveryAddress?.country;
+      if (countryId) {
+        fetchStates(countryId);
+      } else {
+        setStates([]);
+        setAddressModalCustomer(prev => prev ? {
+          ...prev,
+          deliveryAddress: { ...prev.deliveryAddress, state: '', city: '' }
+        } : prev);
+      }
+    }
+  }, [addressModalOpen, addressType, addressModalCustomer?.deliveryAddress?.country]);
+
+  useEffect(() => {
+    if (addressModalOpen && addressType === 'Delivery') {
+      const stateId = addressModalCustomer?.deliveryAddress?.state;
+      if (stateId) {
+        fetchCities(stateId);
+      } else {
+        setCities([]);
+        setAddressModalCustomer(prev => prev ? {
+          ...prev,
+          deliveryAddress: { ...prev.deliveryAddress, city: '' }
+        } : prev);
+      }
+    }
+  }, [addressModalOpen, addressType, addressModalCustomer?.deliveryAddress?.state]);
 
   const renderAddForm = () => (
     <div className="card">
@@ -1042,55 +1107,121 @@ const CustomerMaster = () => {
                   <option value="Delivery">Delivery</option>
                 </select>
               </div>
-              {addressType === 'Billing' && addressModalCustomer && (
+              {['Billing', 'Delivery'].includes(addressType) && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
                   <div>
                     <label style={{ fontWeight: 500 }}>Party Name</label>
-                    <div style={{ border: '1px solid #b2dfdb', borderRadius: 4, padding: 6, minHeight: 32 }}>{addressModalCustomer.customerName || ''}</div>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={addressModalCustomer?.customerName || ''}
+                      readOnly
+                    />
                   </div>
                   <div>
                     <label style={{ fontWeight: 500 }}>Address Line 1</label>
-                    <div style={{ border: '1px solid #b2dfdb', borderRadius: 4, padding: 6, minHeight: 32 }}>{addressModalCustomer.billingAddress?.addressLine1 || ''}</div>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={(addressType === 'Billing' ? addressModalCustomer?.billingAddress?.addressLine1 : addressModalCustomer?.deliveryAddress?.addressLine1) || ''}
+                      onChange={e => handleAddressFieldChange('addressLine1', e.target.value)}
+                    />
                   </div>
                   <div>
                     <label style={{ fontWeight: 500 }}>Address Line 2</label>
-                    <div style={{ border: '1px solid #b2dfdb', borderRadius: 4, padding: 6, minHeight: 32 }}>{addressModalCustomer.billingAddress?.addressLine2 || ''}</div>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={(addressType === 'Billing' ? addressModalCustomer?.billingAddress?.addressLine2 : addressModalCustomer?.deliveryAddress?.addressLine2) || ''}
+                      onChange={e => handleAddressFieldChange('addressLine2', e.target.value)}
+                    />
                   </div>
                   <div>
                     <label style={{ fontWeight: 500 }}>Address Line 3</label>
-                    <div style={{ border: '1px solid #b2dfdb', borderRadius: 4, padding: 6, minHeight: 32 }}>{addressModalCustomer.billingAddress?.addressLine3 || ''}</div>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={(addressType === 'Billing' ? addressModalCustomer?.billingAddress?.addressLine3 : addressModalCustomer?.deliveryAddress?.addressLine3) || ''}
+                      onChange={e => handleAddressFieldChange('addressLine3', e.target.value)}
+                    />
                   </div>
                   <div>
                     <label style={{ fontWeight: 500 }}>Area</label>
-                    <div style={{ border: '1px solid #b2dfdb', borderRadius: 4, padding: 6, minHeight: 32 }}>{addressModalCustomer.billingAddress?.area || ''}</div>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={(addressType === 'Billing' ? addressModalCustomer?.billingAddress?.area : addressModalCustomer?.deliveryAddress?.area) || ''}
+                      onChange={e => handleAddressFieldChange('area', e.target.value)}
+                    />
                   </div>
                   <div>
                     <label style={{ fontWeight: 500 }}>Country Name</label>
-                    <div style={{ border: '1px solid #b2dfdb', borderRadius: 4, padding: 6, minHeight: 32 }}>{addressModalCustomer.billingAddress?.country?.countryName || addressModalCustomer.billingAddress?.country || ''}</div>
+                    <select
+                      className="form-control"
+                      value={(addressType === 'Billing' ? addressModalCustomer?.billingAddress?.country : addressModalCustomer?.deliveryAddress?.country) || ''}
+                      onChange={e => handleAddressFieldChange('country', e.target.value)}
+                    >
+                      <option value="">Select Country</option>
+                      {countries.map(country => (
+                        <option key={country._id} value={country._id}>{country.countryName}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label style={{ fontWeight: 500 }}>State Name</label>
-                    <div style={{ border: '1px solid #b2dfdb', borderRadius: 4, padding: 6, minHeight: 32 }}>{addressModalCustomer.billingAddress?.state?.stateName || addressModalCustomer.billingAddress?.state || ''}</div>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={(addressType === 'Billing' ? addressModalCustomer?.billingAddress?.state : addressModalCustomer?.deliveryAddress?.state) || ''}
+                      onChange={e => handleAddressFieldChange('state', e.target.value)}
+                      placeholder="Enter state name"
+                    />
                   </div>
                   <div>
                     <label style={{ fontWeight: 500 }}>City Name</label>
-                    <div style={{ border: '1px solid #b2dfdb', borderRadius: 4, padding: 6, minHeight: 32 }}>{addressModalCustomer.billingAddress?.city?.cityName || addressModalCustomer.billingAddress?.city || ''}</div>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={(addressType === 'Billing' ? addressModalCustomer?.billingAddress?.city : addressModalCustomer?.deliveryAddress?.city) || ''}
+                      onChange={e => handleAddressFieldChange('city', e.target.value)}
+                      placeholder="Enter city name"
+                    />
                   </div>
                   <div>
                     <label style={{ fontWeight: 500 }}>Pin Code</label>
-                    <div style={{ border: '1px solid #b2dfdb', borderRadius: 4, padding: 6, minHeight: 32 }}>{addressModalCustomer.billingAddress?.pincode || ''}</div>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={(addressType === 'Billing' ? addressModalCustomer?.billingAddress?.pincode : addressModalCustomer?.deliveryAddress?.pincode) || ''}
+                      onChange={e => handleAddressFieldChange('pincode', e.target.value)}
+                    />
                   </div>
                   <div>
                     <label style={{ fontWeight: 500 }}>K.M. from factory</label>
-                    <div style={{ border: '1px solid #b2dfdb', borderRadius: 4, padding: 6, minHeight: 32 }}>{addressModalCustomer.billingAddress?.kmFromFactory || ''}</div>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={(addressType === 'Billing' ? addressModalCustomer?.billingAddress?.kmFromFactory : addressModalCustomer?.deliveryAddress?.kmFromFactory) || ''}
+                      onChange={e => handleAddressFieldChange('kmFromFactory', e.target.value)}
+                    />
                   </div>
                   <div>
                     <label style={{ fontWeight: 500 }}>Telephone No.</label>
-                    <div style={{ border: '1px solid #b2dfdb', borderRadius: 4, padding: 6, minHeight: 32 }}>{addressModalCustomer.billingAddress?.telephone || ''}</div>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={(addressType === 'Billing' ? addressModalCustomer?.billingAddress?.telephone : addressModalCustomer?.deliveryAddress?.telephone) || ''}
+                      onChange={e => handleAddressFieldChange('telephone', e.target.value)}
+                    />
                   </div>
                   <div>
                     <label style={{ fontWeight: 500 }}>Email ID</label>
-                    <div style={{ border: '1px solid #b2dfdb', borderRadius: 4, padding: 6, minHeight: 32 }}>{addressModalCustomer.billingAddress?.email || ''}</div>
+                    <input
+                      type="email"
+                      className="form-control"
+                      value={(addressType === 'Billing' ? addressModalCustomer?.billingAddress?.email : addressModalCustomer?.deliveryAddress?.email) || ''}
+                      onChange={e => handleAddressFieldChange('email', e.target.value)}
+                    />
                   </div>
                 </div>
               )}
@@ -1108,6 +1239,7 @@ const CustomerMaster = () => {
                     <th>Sr. No.</th>
                     <th>Customer Name</th>
                     <th>Address</th>
+                    <th>Type</th>
                     <th>Created At</th>
                     <th>Modified At</th>
                     <th>Actions</th>
@@ -1119,6 +1251,7 @@ const CustomerMaster = () => {
                       <td>{idx + 1}</td>
                       <td>{addr.customerName}</td>
                       <td>{[addr.addressLine1, addr.addressLine2, addr.addressLine3].filter(Boolean).join(', ')}</td>
+                      <td>{addr.addressType || ''}</td>
                       <td>{addr.createdAt ? new Date(addr.createdAt).toLocaleString() : ''}</td>
                       <td>{addr.updatedAt ? new Date(addr.updatedAt).toLocaleString() : ''}</td>
                       <td>

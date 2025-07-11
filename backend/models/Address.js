@@ -9,8 +9,8 @@ const addressSchema = new Schema({
   area: { type: String, trim: true },
   kmFromFactory: { type: String, trim: true },
   country: { type: Schema.Types.ObjectId, ref: 'Country', required: true },
-  state: { type: Schema.Types.ObjectId, ref: 'State', required: true },
-  city: { type: Schema.Types.ObjectId, ref: 'City', required: true },
+  state: { type: String, required: true, trim: true },
+  city: { type: String, required: true, trim: true },
   pincode: { type: String, required: true, trim: true },
   telephone: { type: String, trim: true },
   mobile: { type: String, trim: true },
@@ -19,7 +19,8 @@ const addressSchema = new Schema({
   remarks: { type: String },
   status: { type: String, required: true, enum: ['active', 'inactive'], default: 'active' },
   customerName: { type: String },
-  customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true }
+  customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
+  addressType: { type: String, required: true, enum: ['Billing', 'Delivery'] }
 }, {
   timestamps: true
 });
