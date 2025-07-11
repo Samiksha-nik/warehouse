@@ -242,6 +242,7 @@ const CustomerMaster = () => {
           return;
         }
 
+        // Always include addressType and customerId
         const addressData = {
           addressLine1: formData.billingAddress.addressLine1,
           addressLine2: formData.billingAddress.addressLine2 || '',
@@ -257,7 +258,9 @@ const CustomerMaster = () => {
           email: formData.billingAddress.email || '',
           remarks: formData.billingAddress.remarks || '',
           status: formData.billingAddress.status || 'active',
-          pincode: formData.billingAddress.pincode || ''
+          pincode: formData.billingAddress.pincode || '',
+          addressType: 'Billing',
+          customerId: formData._id || ''
         };
 
         try {
@@ -265,17 +268,15 @@ const CustomerMaster = () => {
             await axios.put(`${API_URL}/addresses/update/${formData.billingAddress._id}`, addressData);
             savedAddressId = formData.billingAddress._id; // Use existing ID
           } else {
-            // Create new address
-            console.log("Address data being sent:", addressData);
-            const requiredFields = [
-              'addressLine1', 'country', 'state', 'city', 'pincode', 'status'
-            ];
-            for (let field of requiredFields) {
-              if (!addressData[field] || addressData[field].toString().trim() === '') {
-                toast.error(`Please fill the required field: ${field}`);
-                return;
-              }
+            // If new customer, save customer first to get _id
+            if (!formData._id) {
+              // Save customer without billingAddress
+              const customerData = { ...formData, billingAddress: undefined };
+              const customerRes = await axios.post(`${API_URL}/customers/add`, customerData);
+              addressData.customerId = customerRes.data._id;
+              formData._id = customerRes.data._id;
             }
+            // Create new address
             const addressResponse = await axios.post(`${API_URL}/addresses/add`, addressData);
             savedAddressId = addressResponse.data._id; // Get the new address ID from the response
           }
@@ -323,8 +324,8 @@ const CustomerMaster = () => {
       if (editingId) {
         await axios.post(`${API_URL}/customers/update/${editingId}`, customerData);
         toast.success('Customer updated successfully!');
-      } else {
-        await axios.post(`${API_URL}/customers/add`, customerData);
+      } else if (formData._id) {
+        await axios.post(`${API_URL}/customers/update/${formData._id}`, customerData);
         toast.success('Customer added successfully!');
       }
 
@@ -399,6 +400,19 @@ const CustomerMaster = () => {
     } else {
       billingAddressObj = customer.billingAddress || {};
     }
+
+    // Map state/city names to ObjectIds for dropdowns
+    let stateId = billingAddressObj.state;
+    let cityId = billingAddressObj.city;
+    if (billingAddressObj.state && typeof billingAddressObj.state === 'string' && states.length > 0) {
+      const foundState = states.find(s => s.stateName?.toLowerCase() === billingAddressObj.state.toLowerCase());
+      if (foundState) stateId = foundState._id;
+    }
+    if (billingAddressObj.city && typeof billingAddressObj.city === 'string' && cities.length > 0) {
+      const foundCity = cities.find(c => c.cityName?.toLowerCase() === billingAddressObj.city.toLowerCase());
+      if (foundCity) cityId = foundCity._id;
+    }
+
     setFormData({
       _id: customer._id, // Ensure _id is included for editing and address modal
       customerCode: customer.customerCode || '',
@@ -415,7 +429,11 @@ const CustomerMaster = () => {
       assignedUser: customer.assignedUser || '',
       modifySP: customer.modifySP || 'no',
       salesPersonName: customer.salesPersonName || '',
-      billingAddress: billingAddressObj,
+      billingAddress: {
+        ...billingAddressObj,
+        state: stateId || '',
+        city: cityId || ''
+      },
       gstin: customer.gstin || '',
       pan: customer.pan || '',
       tan: customer.tan || '',
