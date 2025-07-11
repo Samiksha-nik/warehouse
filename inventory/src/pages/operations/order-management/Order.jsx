@@ -844,7 +844,7 @@ const Order = () => {
                           </td>
                           <td>
                             <PDFDownloadLink
-                              document={<OrderPDF order={mapOrderToPDF(order)} />}
+                              document={<OrderPDF order={mapOrderToPDF(order)} userName={order.customerName || ''} />}
                               fileName={`SalesPerforma_${order.orderNumber || order._id}.pdf`}
                               style={{ textDecoration: 'none' }}
                             >

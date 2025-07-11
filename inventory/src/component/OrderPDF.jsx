@@ -124,55 +124,100 @@ const PDFAddressBlock = ({ billedTo = {}, shippedTo = {} }) => (
 );
 
 // Product Table
-const PDFProductTable = ({ products = [] }) => (
-  <View style={styles.table}>
-    <View style={[styles.tableRow, styles.tableHeader]}>
-      <Text style={[styles.tableCell, { flex: 0.5 }]}>Sr. No</Text>
-      <Text style={[styles.tableCell, { flex: 2 }]}>Description of Goods</Text>
-      <Text style={[styles.tableCell, { flex: 1 }]}>HSN Code</Text>
-      <Text style={[styles.tableCell, { flex: 1 }]}>Grade</Text>
-      <Text style={[styles.tableCell, { flex: 1 }]}>Length</Text>
-      <Text style={[styles.tableCell, { flex: 1 }]}>Width</Text>
-      <Text style={[styles.tableCell, { flex: 1 }]}>Thickness</Text>
-      <Text style={[styles.tableCell, { flex: 1 }]}>Qty</Text>
-      <Text style={[styles.tableCell, { flex: 1 }]}>Basic</Text>
-      <Text style={[styles.tableCell, { flex: 1 }]}>Taxable Value</Text>
-    </View>
-    {products.map((prod = {}, idx) => (
-      <View style={styles.tableRow} key={idx}>
-        <Text style={[styles.tableCell, { flex: 0.5 }]}>{idx + 1}</Text>
-        <Text style={[styles.tableCell, { flex: 2 }]}>
-          {prod.description || ''}
-          {prod.subDescription ? `\n${prod.subDescription}` : ''}
-        </Text>
-        <Text style={[styles.tableCell, { flex: 1 }]}>{prod.hsn || ''}</Text>
-        <Text style={[styles.tableCell, { flex: 1 }]}>{prod.grade || ''}</Text>
-        <Text style={[styles.tableCell, { flex: 1 }]}>{prod.length || ''}</Text>
-        <Text style={[styles.tableCell, { flex: 1 }]}>{prod.width || ''}</Text>
-        <Text style={[styles.tableCell, { flex: 1 }]}>{prod.thickness || ''}</Text>
-        <Text style={[styles.tableCell, { flex: 1 }]}>{prod.qty || ''}</Text>
-        <Text style={[styles.tableCell, { flex: 1 }]}>{prod.basic || ''}</Text>
-        <Text style={[styles.tableCell, { flex: 1 }]}>{prod.taxableValue || ''}</Text>
+const PDFProductTable = ({ products = [], userName = '' }) => {
+  // Calculate totals
+  const totalQty = products.reduce((sum, prod) => sum + (Number(prod.qty) || 0), 0);
+  const totalTaxableValue = products.reduce((sum, prod) => sum + (Number(prod.taxableValue) || 0), 0);
+  return (
+    <View style={styles.table}>
+      <View style={[styles.tableRow, styles.tableHeader]}>
+        <Text style={[styles.tableCell, { flex: 0.5 }]}>Sr. No</Text>
+        <Text style={[styles.tableCell, { flex: 2 }]}>Description of Goods</Text>
+        <Text style={[styles.tableCell, { flex: 1 }]}>HSN Code</Text>
+        <Text style={[styles.tableCell, { flex: 1 }]}>Grade</Text>
+        <Text style={[styles.tableCell, { flex: 1 }]}>Length</Text>
+        <Text style={[styles.tableCell, { flex: 1 }]}>Width</Text>
+        <Text style={[styles.tableCell, { flex: 1 }]}>Thickness</Text>
+        <Text style={[styles.tableCell, { flex: 1 }]}>Qty</Text>
+        <Text style={[styles.tableCell, { flex: 1 }]}>Basic</Text>
+        <Text style={[styles.tableCell, { flex: 1 }]}>Taxable Value</Text>
       </View>
-    ))}
+      {products.map((prod = {}, idx) => (
+        <View style={styles.tableRow} key={idx}>
+          <Text style={[styles.tableCell, { flex: 0.5 }]}>{idx + 1}</Text>
+          <View style={[styles.tableCell, { flex: 2, textAlign: 'left' }]}> 
+            <Text>{prod.description || ''}</Text>
+            {prod.subDescription ? <Text>{prod.subDescription}</Text> : null}
+            {userName && <Text>{userName}</Text>}
+          </View>
+          <Text style={[styles.tableCell, { flex: 1 }]}>{prod.hsn || ''}</Text>
+          <Text style={[styles.tableCell, { flex: 1 }]}>{prod.grade || ''}</Text>
+          <Text style={[styles.tableCell, { flex: 1 }]}>{prod.length || ''}</Text>
+          <Text style={[styles.tableCell, { flex: 1 }]}>{prod.width || ''}</Text>
+          <Text style={[styles.tableCell, { flex: 1 }]}>{prod.thickness || ''}</Text>
+          <Text style={[styles.tableCell, { flex: 1 }]}>{prod.qty || ''}</Text>
+          <Text style={[styles.tableCell, { flex: 1 }]}>{prod.basic || ''}</Text>
+          <Text style={[styles.tableCell, { flex: 1 }]}>{prod.taxableValue || ''}</Text>
+        </View>
+      ))}
+      {/* Total Row */}
+      <View style={styles.tableRow}>
+        <Text style={[styles.tableCell, { flex: 0.5 }]}></Text>
+        <Text style={[styles.tableCell, { flex: 2, fontWeight: 'bold' }]}>Total</Text>
+        <Text style={[styles.tableCell, { flex: 1 }]}></Text>
+        <Text style={[styles.tableCell, { flex: 1 }]}></Text>
+        <Text style={[styles.tableCell, { flex: 1 }]}></Text>
+        <Text style={[styles.tableCell, { flex: 1 }]}></Text>
+        <Text style={[styles.tableCell, { flex: 1 }]}></Text>
+        <Text style={[styles.tableCell, { flex: 1, fontWeight: 'bold' }]}>{totalQty}</Text>
+        <Text style={[styles.tableCell, { flex: 1 }]}></Text>
+        <Text style={[styles.tableCell, { flex: 1, fontWeight: 'bold' }]}>{totalTaxableValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text>
+      </View>
+    </View>
+  );
+};
+
+const PDFTotalsAndBank = ({ totals = {}, bank = {} }) => (
+  <View style={{ flexDirection: 'row', marginTop: 8 }}>
+    {/* Bank Details (left) */}
+    <View style={{ flex: 1 }}>
+      <Text>Bank Name : {bank.name || ''}</Text>
+      <Text>Beneficiary Name : {bank.beneficiary || ''}</Text>
+      <Text>A/C No : {bank.accountNo || ''}</Text>
+      <Text>IFSC Code : {bank.ifsc || ''}</Text>
+      <Text>Branch : {bank.branch || ''}</Text>
+    </View>
+    {/* Totals (right) */}
+    <View style={{ flex: 1 }}>
+      <Text>Taxable Value         {totals.taxableValue || ''}</Text>
+      <Text>CGST                 {totals.cgst || ''}</Text>
+      <Text>SGST                 {totals.sgst || ''}</Text>
+      <Text>IGST                 {totals.igst || ''}</Text>
+      <Text>Total GST Amount     {totals.totalGst || ''}</Text>
+      <Text>TCS @ {totals.tcsRate || ''}%         {totals.tcs || ''}</Text>
+      <Text>Invoice Total        {totals.invoiceTotal || ''}</Text>
+    </View>
   </View>
 );
 
-// Totals
-const PDFTotals = ({ totals = {} }) => (
-  <View style={styles.totals}>
-    <Text>Taxable Value: {totals.taxableValue || ''}  CGST: {totals.cgst || ''}  SGST: {totals.sgst || ''}  IGST: {totals.igst || ''}  Total GST Amount: {totals.totalGst || ''}  TCS @ {totals.tcsRate || ''}%: {totals.tcs || ''}  Invoice Total: {totals.invoiceTotal || ''}</Text>
-  </View>
-);
-
-// Bank Details
-const PDFBankDetails = ({ bank = {} }) => (
-  <View style={styles.bankDetails}>
-    <Text>Bank Name: {bank.name || ''}</Text>
-    <Text>Beneficiary Name: {bank.beneficiary || ''}</Text>
-    <Text>A/C No: {bank.accountNo || ''}</Text>
-    <Text>IFSC Code: {bank.ifsc || ''}</Text>
-    <Text>Branch: {bank.branch || ''}</Text>
+const PDFPaymentAndRemarks = ({ paymentTerms = '', invoiceTotal = '', amountInWords = '', remarks = '' }) => (
+  <View style={{ marginTop: 8, border: '1px solid #000', borderTop: 0 }}>
+    <View style={{ flexDirection: 'row', borderBottom: '1px solid #000' }}>
+      <Text style={{ flex: 1, padding: 4, fontWeight: 'bold' }}>Payment Terms:</Text>
+      <Text style={{ flex: 1, padding: 4 }}>{paymentTerms}</Text>
+    </View>
+    <View style={{ flexDirection: 'row', borderBottom: '1px solid #000' }}>
+      <Text style={{ flex: 1, padding: 4, fontWeight: 'bold' }}>Invoice Total</Text>
+      <Text style={{ flex: 1, padding: 4 }}>{invoiceTotal}</Text>
+    </View>
+    <View style={{ flexDirection: 'row', borderBottom: '1px solid #000' }}>
+      <Text style={{ flex: 1, padding: 4, fontWeight: 'bold' }}>Amount (in words):</Text>
+      <Text style={{ flex: 2, padding: 4 }}>{amountInWords}</Text>
+    </View>
+    <View style={{ flexDirection: 'row' }}>
+      <Text style={{ flex: 1, padding: 4, fontWeight: 'bold' }}>Remark:</Text>
+      <Text style={{ flex: 2, padding: 4 }}>{remarks}</Text>
+    </View>
   </View>
 );
 
@@ -184,7 +229,7 @@ const PDFFooter = ({ company = {} }) => (
 );
 
 // Main PDF Component
-const OrderPDF = ({ order }) => (
+const OrderPDF = ({ order, userName = '' }) => (
   <Document>
     <Page size="A4" style={styles.page}>
       <PDFHeader company={order.company} />
@@ -194,9 +239,14 @@ const OrderPDF = ({ order }) => (
         <Text>Date: {order.date}</Text>
       </View>
       <PDFAddressBlock billedTo={order.billedTo} shippedTo={order.shippedTo} />
-      <PDFProductTable products={order.products} />
-      <PDFTotals totals={order.totals} />
-      <PDFBankDetails bank={order.bank} />
+      <PDFProductTable products={order.products} userName={userName} />
+      <PDFTotalsAndBank totals={order.totals} bank={order.bank} />
+      <PDFPaymentAndRemarks
+        paymentTerms={order.paymentTerms}
+        invoiceTotal={order.totals?.invoiceTotal}
+        amountInWords={order.amountInWords}
+        remarks={order.remarks}
+      />
       <PDFFooter company={order.company} />
     </Page>
   </Document>

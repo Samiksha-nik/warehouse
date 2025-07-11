@@ -80,11 +80,11 @@ orderSchema.pre('save', async function(next) {
   if (!this.orderNumber) {
     try {
       const now = new Date();
-      const year = now.getFullYear().toString().slice(-2);
-      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      const year = now.getFullYear().toString().slice(-2); // '25' for 2025
+      const month = (now.getMonth() + 1).toString().padStart(2, '0'); // '07' for July
       // Find the last order for this year and month
       const lastOrder = await this.constructor.findOne({
-        orderNumber: { $regex: `^ORDN/${year}/${month}` }
+        orderNumber: { $regex: `^ORDN/${year}/${month}/` }
       }, {}, { sort: { createdAt: -1 } });
       let nextNumber = 1;
       if (lastOrder && lastOrder.orderNumber) {
@@ -93,7 +93,7 @@ orderSchema.pre('save', async function(next) {
           nextNumber = parseInt(match[1], 10) + 1;
         }
       }
-      this.orderNumber = `ORDN/${year}/${month} ${nextNumber.toString().padStart(2, '0')}`;
+      this.orderNumber = `ORDN/${year}/${month}/${nextNumber.toString().padStart(2, '0')}`;
     } catch (error) {
       return next(error);
     }
